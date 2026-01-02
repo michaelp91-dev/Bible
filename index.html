@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>KJV Study Bible</title>
+    <title>KJV Bible Study</title>
     <style>
         :root {
             --primary: #1a237e;
@@ -12,7 +12,7 @@
             --text: #212121;
             --verse-num: #9e9e9e;
             --highlight: #e3f2fd;
-            --note-bg: #fff9c4;
+            --preview-text: #666;
         }
 
         body {
@@ -21,56 +21,51 @@
             -webkit-tap-highlight-color: transparent;
         }
 
-        /* Header & Search */
+        /* Header */
         header {
             position: sticky; top: 0; background: var(--primary); color: white;
             padding: 10px; z-index: 100; box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
-
         .nav-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-        
         #nav-title {
             background: rgba(255,255,255,0.15); border: none; color: white;
             padding: 8px 16px; border-radius: 4px; font-size: 1.1rem; font-weight: bold; cursor: pointer;
         }
-
         .search-row { display: flex; gap: 5px; }
-        input[type="text"] {
-            flex-grow: 1; padding: 10px; border-radius: 4px; border: none; font-size: 16px;
-        }
+        input[type="text"] { flex-grow: 1; padding: 10px; border-radius: 4px; border: none; font-size: 16px; }
 
-        /* Content */
+        /* Bible Content */
         #content { padding: 15px; max-width: 800px; margin: 0 auto; padding-bottom: 100px; }
-        
         .verse { margin-bottom: 10px; padding: 5px; border-radius: 4px; cursor: pointer; }
         .verse.selected { background-color: var(--highlight); border-left: 4px solid var(--accent); }
         .v-num { font-size: 0.8rem; font-weight: bold; color: var(--verse-num); margin-right: 8px; }
         .note-indicator { display: inline-block; width: 8px; height: 8px; background: #ffd600; border-radius: 50%; margin-left: 5px; }
 
-        /* Modals */
+        /* Modals & Z-Index Management */
         .modal {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.6); z-index: 1000; overflow-y: auto;
+            background: rgba(0,0,0,0.6); overflow-y: auto;
         }
+        #nav-modal { z-index: 1000; }
+        #list-notes-modal { z-index: 1100; }
+        #note-modal { z-index: 1200; } /* Highest Z-index to appear on top of List Notes */
+
         .modal-content {
             background: white; margin: 15px auto; padding: 20px; width: 90%; 
-            max-width: 500px; border-radius: 12px; position: relative;
+            max-width: 500px; border-radius: 12px;
         }
 
         .grid-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(85px, 1fr)); gap: 8px; margin-top: 15px; }
         .grid-item { padding: 12px 5px; text-align: center; background: #f5f5f5; border-radius: 6px; font-size: 0.9rem; cursor: pointer; }
-        .grid-item:active { background: #e0e0e0; }
 
-        /* Notes UI */
-        #note-editor-area { display: flex; flex-direction: column; gap: 10px; }
-        textarea { width: 100%; height: 120px; padding: 10px; box-sizing: border-box; font-size: 16px; border: 1px solid #ddd; border-radius: 4px; }
-        
+        /* Notes Display */
         .note-card { background: #fdfdfd; border: 1px solid #eee; padding: 12px; margin-bottom: 15px; border-radius: 8px; }
-        .note-text { white-space: pre-wrap; margin-bottom: 10px; }
-        .note-links-row { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; }
-        .ref-link { background: var(--highlight); color: var(--primary); padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: bold; cursor: pointer; }
-        
-        .note-actions { display: flex; gap: 10px; }
+        .note-header { font-weight: bold; color: var(--accent); font-size: 0.85rem; margin-bottom: 4px; }
+        .verse-preview { font-size: 0.85rem; color: var(--preview-text); font-style: italic; margin-bottom: 8px; line-height: 1.3; }
+        .note-text { white-space: pre-wrap; margin-bottom: 10px; border-left: 2px solid #ddd; padding-left: 10px; }
+        .link-preview-box { background: #f9f9f9; padding: 8px; border-radius: 4px; margin-top: 5px; border: 1px solid #eee; }
+        .ref-tag { color: var(--accent); font-weight: bold; cursor: pointer; }
+
         .btn { padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
         .btn-primary { background: var(--accent); color: white; }
         .btn-outline { background: #eee; color: #333; }
@@ -92,13 +87,13 @@
         <button class="btn btn-outline" style="font-size: 0.8rem" onclick="showAllNotes()">Show Notes</button>
     </div>
     <div class="search-row">
-        <input type="text" id="search-input" placeholder="Search John 3:16 or 'love'">
+        <input type="text" id="search-input" placeholder="Search John 3:16 or 'Jesus wept'">
         <button class="btn btn-primary" onclick="executeSearch()">Go</button>
     </div>
 </header>
 
 <main id="content">
-    <div style="text-align: center; margin-top: 50px;">Parsing kjvdat.txt...</div>
+    <div style="text-align: center; margin-top: 50px;">Initializing Bible Data...</div>
 </main>
 
 <button id="add-note-fab" class="fab" onclick="openNoteEditor()"><span>+</span></button>
@@ -113,12 +108,12 @@
 
 <div id="note-modal" class="modal">
     <div class="modal-content">
-        <h3 id="note-title">New Note</h3>
+        <h3 id="note-title">Note Editor</h3>
         <p id="note-verses-label" style="font-size: 0.9rem; color: #666;"></p>
-        <div id="note-editor-area">
-            <textarea id="note-input" placeholder="Enter note... use @John3:16 to link verses"></textarea>
+        <div id="note-editor-area" style="display:flex; flex-direction:column; gap:10px;">
+            <textarea id="note-input" style="width:100%; height:150px; font-size:16px;" placeholder="Enter note... link with @John3:16"></textarea>
             <button class="btn btn-primary" onclick="saveNote()">Save Note</button>
-            <button class="btn btn-outline" onclick="closeModal('note-modal')">Close</button>
+            <button class="btn btn-outline" onclick="closeModal('note-modal')">Cancel</button>
         </div>
     </div>
 </div>
@@ -133,14 +128,13 @@
 
 <script>
     let bibleData = [];
-    let books = []; // List of unique book codes from file
+    let books = [];
     let currentBook = "Gen";
     let currentChapter = "1";
     let selectedVerses = [];
-    let notes = JSON.parse(localStorage.getItem('kjv_notes_v2') || '[]');
+    let notes = JSON.parse(localStorage.getItem('kjv_notes_v3') || '[]');
     let editingNoteId = null;
 
-    // Full names for display, mapping from the file's 3-letter codes
     const bookMap = {
         "Gen": "Genesis", "Exo": "Exodus", "Lev": "Leviticus", "Num": "Numbers", "Deu": "Deuteronomy",
         "Jos": "Joshua", "Jud": "Judges", "Rut": "Ruth", "1Sa": "1 Samuel", "2Sa": "2 Samuel",
@@ -156,43 +150,30 @@
         "1Pe": "1 Peter", "2Pe": "2 Peter", "1Jo": "1 John", "2Jo": "2 John", "3Jo": "3 John", "Jud": "Jude", "Rev": "Revelation"
     };
 
-    // Load and Parse File
     fetch('kjvdat.txt')
         .then(r => r.text())
         .then(data => {
-            const lines = data.split('\n');
-            bibleData = lines.filter(l => l.trim()).map(l => {
+            bibleData = data.split('\n').filter(l => l.trim()).map(l => {
                 const p = l.split('|');
                 return { b: p[0], c: p[1], v: p[2], t: p[3].replace('~', '').trim() };
             });
-            
-            // Get unique books from the actual data to avoid missing any
             books = [...new Set(bibleData.map(v => v.b))];
             renderChapter();
-        })
-        .catch(e => {
-            document.getElementById('content').innerText = "Error loading kjvdat.txt. Make sure it's in the same folder.";
         });
 
     function renderChapter() {
         const titleBtn = document.getElementById('nav-title');
         titleBtn.innerText = `${bookMap[currentBook] || currentBook} ${currentChapter}`;
-        
         const container = document.getElementById('content');
         const verses = bibleData.filter(v => v.b === currentBook && v.c === currentChapter);
         
         container.innerHTML = verses.map(v => {
-            const vId = `${v.b}|${v.c}|${v.v}`;
             const hasNote = notes.some(n => n.b === v.b && n.c === v.c && n.verses.includes(v.v));
-            return `
-                <div class="verse ${selectedVerses.includes(v.v) ? 'selected' : ''}" onclick="selectVerse('${v.v}')" id="v-${v.v}">
-                    <span class="v-num">${v.v}</span>${v.t}
-                    ${hasNote ? '<span class="note-indicator"></span>' : ''}
-                </div>
-            `;
+            return `<div class="verse ${selectedVerses.includes(v.v) ? 'selected' : ''}" onclick="selectVerse('${v.v}')" id="v-${v.v}">
+                <span class="v-num">${v.v}</span>${v.t}${hasNote ? '<span class="note-indicator"></span>' : ''}
+            </div>`;
         }).join('');
-        
-        updateFab();
+        document.getElementById('add-note-fab').style.display = selectedVerses.length > 0 ? 'flex' : 'none';
     }
 
     function selectVerse(vNum) {
@@ -202,17 +183,10 @@
         renderChapter();
     }
 
-    function updateFab() {
-        document.getElementById('add-note-fab').style.display = selectedVerses.length > 0 ? 'flex' : 'none';
-    }
-
-    // Navigation
     function openBookNav() {
         const list = document.getElementById('nav-modal-list');
         document.getElementById('nav-modal-title').innerText = "Select Book";
-        list.innerHTML = books.map(b => `
-            <div class="grid-item" onclick="pickBook('${b}')">${bookMap[b] || b}</div>
-        `).join('');
+        list.innerHTML = books.map(b => `<div class="grid-item" onclick="pickBook('${b}')">${bookMap[b] || b}</div>`).join('');
         document.getElementById('nav-modal').style.display = 'block';
     }
 
@@ -221,160 +195,139 @@
         const chapters = [...new Set(bibleData.filter(v => v.b === b).map(v => v.c))];
         const list = document.getElementById('nav-modal-list');
         document.getElementById('nav-modal-title').innerText = "Select Chapter";
-        list.innerHTML = chapters.map(c => `
-            <div class="grid-item" onclick="pickChapter('${c}')">${c}</div>
-        `).join('');
+        list.innerHTML = chapters.map(c => `<div class="grid-item" onclick="pickChapter('${c}')">${c}</div>`).join('');
     }
 
     function pickChapter(c) {
-        currentChapter = c;
-        selectedVerses = [];
-        closeModal('nav-modal');
-        renderChapter();
-        window.scrollTo(0,0);
+        currentChapter = c; selectedVerses = []; closeModal('nav-modal'); renderChapter(); window.scrollTo(0,0);
     }
 
     function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
-    // Notes Core
+    // Notes Logic
     function openNoteEditor(noteId = null) {
         editingNoteId = noteId;
         const input = document.getElementById('note-input');
         const label = document.getElementById('note-verses-label');
-        
         if (noteId) {
             const n = notes.find(x => x.id === noteId);
             input.value = n.text;
-            label.innerText = `Editing Note for: ${bookMap[n.b]} ${n.c}:${n.verses.join(', ')}`;
+            label.innerText = `Edit: ${bookMap[n.b]} ${n.c}:${n.verses.join(', ')}`;
         } else {
             selectedVerses.sort((a,b) => parseInt(a)-parseInt(b));
             input.value = "";
-            label.innerText = `New Note for: ${bookMap[currentBook]} ${currentChapter}:${selectedVerses.join(', ')}`;
+            label.innerText = `New: ${bookMap[currentBook]} ${currentChapter}:${selectedVerses.join(', ')}`;
         }
-        
         document.getElementById('note-modal').style.display = 'block';
     }
 
     function saveNote() {
         const text = document.getElementById('note-input').value.trim();
         if (!text) return;
-
         if (editingNoteId) {
             const n = notes.find(x => x.id === editingNoteId);
             n.text = text;
         } else {
-            notes.push({
-                id: Date.now(),
-                b: currentBook,
-                c: currentChapter,
-                verses: [...selectedVerses],
-                text: text
-            });
+            notes.push({ id: Date.now(), b: currentBook, c: currentChapter, verses: [...selectedVerses], text: text });
         }
-        
-        localStorage.setItem('kjv_notes_v2', JSON.stringify(notes));
-        selectedVerses = [];
-        closeModal('note-modal');
-        closeModal('list-notes-modal');
-        renderChapter();
+        localStorage.setItem('kjv_notes_v3', JSON.stringify(notes));
+        selectedVerses = []; closeModal('note-modal'); renderChapter(); showAllNotes();
     }
 
     function deleteNote(id) {
-        if (!confirm("Delete this note?")) return;
-        notes = notes.filter(n => n.id !== id);
-        localStorage.setItem('kjv_notes_v2', JSON.stringify(notes));
-        showAllNotes();
-        renderChapter();
+        if (confirm("Delete this note?")) {
+            notes = notes.filter(n => n.id !== id);
+            localStorage.setItem('kjv_notes_v3', JSON.stringify(notes));
+            showAllNotes(); renderChapter();
+        }
     }
 
     function showAllNotes() {
         const container = document.getElementById('notes-list-container');
-        const chapterNotes = notes.filter(n => n.b === currentBook && n.c === currentChapter);
+        let chapterNotes = notes.filter(n => n.b === currentBook && n.c === currentChapter);
         
-        if (chapterNotes.length === 0) {
+        // Sorting: Verse 2-5 comes before Verse 3
+        chapterNotes.sort((a, b) => parseInt(a.verses[0]) - parseInt(b.verses[0]));
+
+        if (!chapterNotes.length) {
             container.innerHTML = "<p>No notes for this chapter.</p>";
         } else {
             container.innerHTML = chapterNotes.map(n => {
+                const subjectText = n.verses.map(vNum => {
+                    const match = bibleData.find(v => v.b === n.b && v.c === n.c && v.v === vNum);
+                    return match ? `(${vNum}) ${match.t}` : "";
+                }).join(' ');
+
                 const links = parseLinks(n.text);
+                const linkPreviews = links.map(l => {
+                    const preview = getVerseTextFromRef(l);
+                    return `<div class="link-preview-box">
+                                <span class="ref-tag" onclick="jumpToLink('${l}')">${l}</span>: 
+                                <span style="font-size:0.8rem; color:#666;">${preview}</span>
+                            </div>`;
+                }).join('');
+
                 return `
-                    <div class="note-card">
-                        <div style="font-weight:bold; color:var(--accent); font-size:0.8rem; margin-bottom:5px;">
-                            Verse ${n.verses.join(', ')}
-                        </div>
-                        <div class="note-text">${n.text}</div>
-                        <div class="note-links-row">${links.map(l => `<span class="ref-link" onclick="jumpToLink('${l}')">${l}</span>`).join('')}</div>
-                        <div class="note-actions">
-                            <button class="btn btn-outline" style="padding:5px 10px; font-size:0.75rem;" onclick="openNoteEditor(${n.id})">Edit</button>
-                            <button class="btn btn-danger" style="padding:5px 10px; font-size:0.75rem;" onclick="deleteNote(${n.id})">Delete</button>
-                        </div>
+                <div class="note-card">
+                    <div class="note-header">${bookMap[n.b]} ${n.c}:${n.verses.join(', ')}</div>
+                    <div class="verse-preview">${subjectText}</div>
+                    <div class="note-text">${n.text}</div>
+                    ${linkPreviews}
+                    <div style="margin-top:10px; display:flex; gap:10px;">
+                        <button class="btn btn-outline" style="padding:5px 10px; font-size:0.7rem;" onclick="openNoteEditor(${n.id})">Edit</button>
+                        <button class="btn btn-danger" style="padding:5px 10px; font-size:0.7rem;" onclick="deleteNote(${n.id})">Delete</button>
                     </div>
-                `;
+                </div>`;
             }).join('');
         }
         document.getElementById('list-notes-modal').style.display = 'block';
     }
 
-    // Linking Logic (@John3:16)
     function parseLinks(text) {
-        const regex = /@([1-3]?\s?[a-zA-Z]+)(\d+):(\d+)(?:-(\d+))?/g;
-        const matches = [...text.matchAll(regex)];
-        return matches.map(m => m[0]);
+        const matches = text.match(/@([1-3]?\s?[a-zA-Z]+)(\d+):(\d+)(?:-(\d+))?/g);
+        return matches || [];
+    }
+
+    function getVerseTextFromRef(atRef) {
+        const match = atRef.replace('@', '').match(/([1-3]?\s?[a-zA-Z]+)(\d+):(\d+)/);
+        if (!match) return "Invalid reference";
+        const bQ = match[1].toLowerCase().replace(/\s/g, '');
+        const targetBook = books.find(code => code.toLowerCase() === bQ || (bookMap[code] && bookMap[code].toLowerCase().replace(/\s/g, '').includes(bQ)));
+        if (!targetBook) return "Book not found";
+        const v = bibleData.find(x => x.b === targetBook && x.c === match[2] && x.v === match[3]);
+        return v ? v.t : "Verse not found";
     }
 
     function jumpToLink(atRef) {
-        const cleanRef = atRef.replace('@', '');
-        document.getElementById('search-input').value = cleanRef;
         closeModal('list-notes-modal');
+        document.getElementById('search-input').value = atRef.replace('@', '');
         executeSearch();
     }
 
-    // Search Logic
     function executeSearch() {
         const query = document.getElementById('search-input').value.trim();
         if (!query) return;
-
-        // Try Reference Search: @Romans5:8 or Romans 5:8
-        const refRegex = /^([1-3]?\s?[a-zA-Z]+)\s?(\d+):(\d+)(?:-(\d+))?$/;
-        const match = query.match(refRegex);
-
-        if (match) {
-            const bQuery = match[1].toLowerCase().replace(/\s/g, '');
-            const targetBook = books.find(code => 
-                code.toLowerCase() === bQuery || 
-                (bookMap[code] && bookMap[code].toLowerCase().replace(/\s/g, '').includes(bQuery))
-            );
-
+        const refMatch = query.match(/^([1-3]?\s?[a-zA-Z]+)\s?(\d+):(\d+)/);
+        if (refMatch) {
+            const bQ = refMatch[1].toLowerCase().replace(/\s/g, '');
+            const targetBook = books.find(code => code.toLowerCase() === bQ || (bookMap[code] && bookMap[code].toLowerCase().replace(/\s/g, '').includes(bQ)));
             if (targetBook) {
-                currentBook = targetBook;
-                currentChapter = match[2];
-                selectedVerses = [match[3]];
+                currentBook = targetBook; currentChapter = refMatch[2]; selectedVerses = [refMatch[3]];
                 renderChapter();
-                setTimeout(() => {
-                    const el = document.getElementById(`v-${match[3]}`);
-                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }, 200);
+                setTimeout(() => { document.getElementById(`v-${refMatch[3]}`).scrollIntoView({behavior:'smooth', block:'center'}); }, 200);
                 return;
             }
         }
-
-        // Keyword Search
         const results = bibleData.filter(v => v.t.toLowerCase().includes(query.toLowerCase())).slice(0, 50);
-        const container = document.getElementById('content');
-        container.innerHTML = `<h4>Search: "${query}"</h4>` + (results.length ? results.map(r => `
+        document.getElementById('content').innerHTML = `<h4>Search: "${query}"</h4>` + (results.length ? results.map(r => `
             <div class="verse" onclick="goTo('${r.b}','${r.c}','${r.v}')">
                 <small><strong>${bookMap[r.b] || r.b} ${r.c}:${r.v}</strong></small><br>${r.t}
-            </div>
-        `).join('') : "No results.");
+            </div>`).join('') : "No results.");
     }
 
     function goTo(b, c, v) {
-        currentBook = b;
-        currentChapter = c;
-        selectedVerses = [v];
-        renderChapter();
-        setTimeout(() => {
-            document.getElementById(`v-${v}`).scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }, 100);
+        currentBook = b; currentChapter = c; selectedVerses = [v]; renderChapter();
+        setTimeout(() => { document.getElementById(`v-${v}`).scrollIntoView({behavior:'smooth', block:'center'}); }, 100);
     }
 </script>
 </body>
