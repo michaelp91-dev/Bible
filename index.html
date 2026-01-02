@@ -23,72 +23,76 @@ export default function App() {
   const [error, setError] = useState(null);
 
   // --- Data Loading & Dynamic Book Generation ---
-  // No hardcoded mappings or book lists. Everything is pulled from kjvdat.txt and vuldat.txt.
   useEffect(() => {
     const loadFiles = async () => {
       try {
         setLoading(true);
-        // Fetching files from the same folder as index.html
+        // We use KJV.txt for full names and English verses
+        // We use vuldat.txt for Latin comparison
         const [kjvRes, vulRes] = await Promise.all([
-          fetch('kjvdat.txt'),
+          fetch('KJV.txt'),
           fetch('vuldat.txt')
         ]);
 
         if (!kjvRes.ok || !vulRes.ok) {
-          throw new Error("Could not find bible data files (kjvdat.txt and vuldat.txt) in the root folder.");
+          throw new Error("Could not find bible data files (KJV.txt and vuldat.txt) in the root folder.");
         }
 
         const [kjvText, vulText] = await Promise.all([kjvRes.text(), vulRes.text()]);
 
         const kjvMap = {};
         const vulMap = {};
-        const kjvBookOrder = [];
-        const vulBookOrder = [];
+        const bookList = [];
+        const latinBookOrder = [];
 
-        // 1. Parse kjvdat.txt (Format: "Book|C|V|Text~")
-        kjvText.split(/\r?\n/).forEach(line => {
-          const parts = line.split('|');
-          if (parts.length >= 4) {
-            const b = parts[0].trim();
-            const c = parts[1].trim();
-            const v = parts[2].trim();
-            const t = parts[3].replace('~', '').trim();
-            
-            if (!kjvMap[b]) {
-              kjvMap[b] = {};
-              kjvBookOrder.push(b);
+        // 1. Parse KJV.txt (Format: "Full Book Name Chapter:Verse\tText")
+        // Skips header lines (KJV / King James Bible...) and looks for verse patterns
+        const kjvLines = kjvText.split(/\r?\n/);
+        const kjvRegex = /^(.+)\s(\d+):(\d+)\t(.+)$/;
+
+        kjvLines.forEach(line => {
+          const match = line.match(kjvRegex);
+          if (match) {
+            const [_, bookName, chapter, verse, text] = match;
+            const cNum = parseInt(chapter);
+            const vNum = parseInt(verse);
+
+            if (!kjvMap[bookName]) {
+              kjvMap[bookName] = {};
+              bookList.push({ name: bookName, chapters: 0, order: bookList.length });
             }
-            if (!kjvMap[b][c]) kjvMap[b][c] = [];
-            kjvMap[b][c].push({ num: parseInt(v), text: t });
+            if (!kjvMap[bookName][cNum]) kjvMap[bookName][cNum] = [];
+            
+            kjvMap[bookName][cNum].push({ num: vNum, text: text.trim() });
+            
+            const bookObj = bookList.find(b => b.name === bookName);
+            if (cNum > bookObj.chapters) bookObj.chapters = cNum;
           }
         });
 
-        // 2. Parse vuldat.txt (Format: "Book|C|V|Text~")
+        // 2. Parse vuldat.txt (Format: "Abbr|C|V|Text~")
         vulText.split(/\r?\n/).forEach(line => {
           const parts = line.split('|');
           if (parts.length >= 4) {
-            const b = parts[0].trim();
+            const abbr = parts[0].trim();
             const c = parts[1].trim();
             const v = parts[2].trim();
             const t = parts[3].replace('~', '').trim();
             
-            if (!vulMap[b]) {
-              vulMap[b] = {};
-              vulBookOrder.push(b);
+            if (!vulMap[abbr]) {
+              vulMap[abbr] = {};
+              latinBookOrder.push(abbr);
             }
-            if (!vulMap[b][c]) vulMap[b][c] = [];
-            vulMap[b][c].push({ num: parseInt(v), text: t });
+            if (!vulMap[abbr][c]) vulMap[abbr][c] = [];
+            vulMap[abbr][c].push({ num: parseInt(v), text: t });
           }
         });
 
-        // 3. Generate book list dynamically from files
-        // We sync KJV names to VUL keys by their index in the file order
-        const generatedBooks = kjvBookOrder.map((name, index) => {
-          const chapters = Object.keys(kjvMap[name]).length;
+        // 3. Link Full Names to Latin Abbrs based on order of appearance (Biblical Order)
+        const generatedBooks = bookList.map((book, index) => {
           return {
-            name: name, // Pulled directly from the file first column
-            abbr: vulBookOrder[index] || name, // Match Latin version by file index
-            chapters: chapters
+            ...book,
+            abbr: latinBookOrder[index] || book.name // Link to Latin index
           };
         });
 
@@ -117,7 +121,7 @@ export default function App() {
     return kjv.map((v, i) => ({
       num: v.num,
       text: v.text,
-      lat: vul[i]?.text || "[Latin not found]"
+      lat: vul[i]?.text || "[Latin text not found for this verse]"
     }));
   }, [bibleData, currentBook, currentChapter]);
 
@@ -146,16 +150,16 @@ export default function App() {
   if (loading) return (
     <div className="h-screen flex flex-col items-center justify-center bg-white">
       <Loader2 className="animate-spin text-blue-600 mb-4" size={48} />
-      <p className="text-neutral-500 animate-pulse font-medium tracking-tight">Parsing Bible Library...</p>
+      <p className="text-neutral-500 animate-pulse font-medium tracking-tight">Extracting Full Book Names from KJV.txt...</p>
     </div>
   );
 
   if (error || !currentBook) return (
     <div className="h-screen flex flex-col items-center justify-center p-10 text-center">
-      <div className="bg-red-50 text-red-600 p-6 rounded-2xl border border-red-100 max-w-sm">
-        <h2 className="font-bold text-lg mb-2">Resource Error</h2>
+      <div className="bg-red-50 text-red-600 p-6 rounded-2xl border border-red-100 max-w-sm shadow-sm">
+        <h2 className="font-bold text-lg mb-2 tracking-tight">Resource Error</h2>
         <p className="text-sm">{error || "No book data found."}</p>
-        <p className="text-xs mt-4 text-red-400 italic">Ensure kjvdat.txt and vuldat.txt are in the same folder as index.html.</p>
+        <p className="text-xs mt-4 text-red-400 italic">Ensure KJV.txt and vuldat.txt are in the root directory.</p>
       </div>
     </div>
   );
@@ -194,7 +198,7 @@ export default function App() {
           <div className="max-w-prose mx-auto">
             <div className="text-center mb-10">
               <span className="text-xs font-bold text-blue-500 uppercase tracking-widest block mb-1">
-                {version === 'KJV' ? 'English Version' : 'Latin Vulgate'}
+                {version === 'KJV' ? 'King James English' : 'Latin Vulgate'}
               </span>
               <h1 className="text-4xl font-serif font-black">{currentBook.name} {currentChapter}</h1>
             </div>
@@ -250,8 +254,8 @@ export default function App() {
                     onClick={() => { setCurrentBook(b); setNavStep('chapters'); }}
                     className={`p-4 text-left rounded-xl border transition-all ${currentBook.name === b.name ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white hover:border-blue-400'}`}
                   >
-                    <div className="font-bold text-sm">{b.name}</div>
-                    <div className={`text-[10px] uppercase font-bold ${currentBook.name === b.name ? 'text-blue-200' : 'text-neutral-400'}`}>
+                    <div className="font-bold text-sm tracking-tight">{b.name}</div>
+                    <div className={`text-[10px] uppercase font-bold tracking-tighter ${currentBook.name === b.name ? 'text-blue-200' : 'text-neutral-400'}`}>
                       {b.chapters} Chapters
                     </div>
                   </button>
@@ -263,7 +267,7 @@ export default function App() {
                   <button 
                     key={c}
                     onClick={() => { setCurrentChapter(c); setView('reading'); }}
-                    className={`aspect-square flex items-center justify-center rounded-xl border font-bold ${currentChapter === c ? 'bg-blue-600 text-white border-blue-600' : 'bg-white hover:border-blue-400'}`}
+                    className={`aspect-square flex items-center justify-center rounded-xl border font-bold ${currentChapter === c ? 'bg-blue-600 text-white border-blue-600' : 'bg-white hover:border-blue-400 hover:shadow-sm'}`}
                   >
                     {c}
                   </button>
@@ -316,19 +320,19 @@ export default function App() {
               <button onClick={() => setView('reading')} className="p-2 hover:bg-neutral-100 rounded-full">
                 <ArrowLeft size={20} />
               </button>
-              <h2 className="text-xl font-bold">Recent Notes</h2>
+              <h2 className="text-xl font-bold">Session Notes</h2>
             </div>
 
             {notes.length === 0 ? (
               <div className="text-center py-20 opacity-30">
                 <BookOpen size={64} className="mx-auto mb-4" />
-                <p className="font-bold">No notes yet</p>
+                <p className="font-bold">No notes recorded.</p>
               </div>
             ) : (
               notes.map(n => (
                 <div key={n.id} className="bg-white p-5 rounded-2xl border shadow-sm">
                   <div className="flex justify-between items-center mb-2">
-                    <span className="text-[10px] font-black bg-blue-50 text-blue-600 px-2 py-1 rounded-md uppercase">{n.verse}</span>
+                    <span className="text-[10px] font-black bg-blue-50 text-blue-600 px-2 py-1 rounded-md uppercase tracking-tighter">{n.verse}</span>
                     <span className="text-[10px] text-neutral-400 font-bold uppercase">{n.timestamp}</span>
                   </div>
                   <p className="text-neutral-700 leading-relaxed">{n.content}</p>
@@ -341,7 +345,7 @@ export default function App() {
       </div>
 
       <div className="bg-white border-t p-4 text-[10px] font-bold uppercase tracking-widest text-neutral-400 flex justify-between items-center">
-        <span>Dynamic Data: kjvdat.txt</span>
+        <span>Source: KJV.txt & vuldat.txt</span>
         <div className="flex items-center gap-1.5 text-green-500">
           <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
           Live Connection
