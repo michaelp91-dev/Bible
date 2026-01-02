@@ -3,7 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>KJV Bible Study</title>
+    <title>Bible Study App</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1a237e">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3004/3004416.png">
+
     <style>
         :root {
             --primary: #1a237e;
@@ -48,7 +55,7 @@
         }
         #nav-modal { z-index: 1000; }
         #list-notes-modal { z-index: 1100; }
-        #note-modal { z-index: 1200; } /* Highest Z-index to appear on top of List Notes */
+        #note-modal { z-index: 1200; } 
 
         .modal-content {
             background: white; margin: 15px auto; padding: 20px; width: 90%; 
@@ -93,7 +100,7 @@
 </header>
 
 <main id="content">
-    <div style="text-align: center; margin-top: 50px;">Initializing Bible Data...</div>
+    <div style="text-align: center; margin-top: 50px;">Bible Study App Initializing...</div>
 </main>
 
 <button id="add-note-fab" class="fab" onclick="openNoteEditor()"><span>+</span></button>
@@ -132,7 +139,7 @@
     let currentBook = "Gen";
     let currentChapter = "1";
     let selectedVerses = [];
-    let notes = JSON.parse(localStorage.getItem('kjv_notes_v3') || '[]');
+    let notes = JSON.parse(localStorage.getItem('bible_app_notes') || '[]');
     let editingNoteId = null;
 
     const bookMap = {
@@ -230,14 +237,14 @@
         } else {
             notes.push({ id: Date.now(), b: currentBook, c: currentChapter, verses: [...selectedVerses], text: text });
         }
-        localStorage.setItem('kjv_notes_v3', JSON.stringify(notes));
+        localStorage.setItem('bible_app_notes', JSON.stringify(notes));
         selectedVerses = []; closeModal('note-modal'); renderChapter(); showAllNotes();
     }
 
     function deleteNote(id) {
         if (confirm("Delete this note?")) {
             notes = notes.filter(n => n.id !== id);
-            localStorage.setItem('kjv_notes_v3', JSON.stringify(notes));
+            localStorage.setItem('bible_app_notes', JSON.stringify(notes));
             showAllNotes(); renderChapter();
         }
     }
@@ -246,7 +253,7 @@
         const container = document.getElementById('notes-list-container');
         let chapterNotes = notes.filter(n => n.b === currentBook && n.c === currentChapter);
         
-        // Sorting: Verse 2-5 comes before Verse 3
+        // Sorting: Numerical by first verse
         chapterNotes.sort((a, b) => parseInt(a.verses[0]) - parseInt(b.verses[0]));
 
         if (!chapterNotes.length) {
