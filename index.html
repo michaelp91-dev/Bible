@@ -69,11 +69,12 @@
     <!-- Content Area -->
     <main class="flex-grow max-w-4xl mx-auto w-full p-4">
         
+        <!-- Results -->
         <div id="resultsContainer" class="hidden">
             <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                 <div class="border-b border-slate-100 bg-slate-50 px-6 py-4 flex justify-between items-center">
-                    <h2 id="headerTitle" class="text-lg font-semibold text-slate-700 uppercase tracking-widest">--- GENESIS CHAPTER 1 ---</h2>
-                    <span class="text-xs text-slate-400 font-mono">kjv_search.py output</span>
+                    <h2 id="headerTitle" class="text-lg font-semibold text-slate-700 uppercase tracking-widest"></h2>
+                    <span class="text-xs text-slate-400 font-mono">kjv_search.py logic</span>
                 </div>
                 
                 <div class="p-6 sm:p-10 scripture-text text-xl text-slate-800" id="bibleContent">
@@ -86,6 +87,17 @@
                     </div>
                 </div>
             </div>
+        </div>
+
+        <!-- Error State -->
+        <div id="errorState" class="hidden py-20 text-center">
+            <div class="bg-red-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+            </div>
+            <h3 class="text-slate-600 font-medium" id="errorMsg"></h3>
+            <p class="text-slate-400 text-sm mt-1">Check if abbreviations match (e.g., Gen, Exo, Mat).</p>
         </div>
 
         <!-- Placeholder / Empty State -->
@@ -102,17 +114,17 @@
         <!-- Loading State -->
         <div id="loading" class="hidden py-20 text-center">
             <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-            <p class="text-slate-500">Processing with kjv_search.py...</p>
+            <p class="text-slate-500">Searching kjvdat.txt...</p>
         </div>
 
     </main>
 
     <footer class="py-8 text-center text-slate-400 text-sm">
-        <p>Built with Python (backend) and Tailwind CSS (frontend)</p>
+        <p>Direct implementation of search_kjvdat_pro logic</p>
     </footer>
 
     <script>
-        // Subscript mapping logic from your kjv_search.py
+        // Exactly matches get_subscript(number) from kjv_search.py
         function getSubscript(number) {
             const subMap = {
                 "0": "₀", "1": "₁", "2": "₂", "3": "₃", "4": "₄",
@@ -122,43 +134,75 @@
         }
 
         async function handleSearch() {
-            const book = document.getElementById('bookInput').value.trim();
-            const chapter = document.getElementById('chapterInput').value.trim();
+            const bookAbbr = document.getElementById('bookInput').value.trim();
+            const chapterNum = document.getElementById('chapterInput').value.trim();
             
-            if (!book || !chapter) return;
+            if (!bookAbbr || !chapterNum) return;
 
-            // UI State management
+            // UI Reset
             document.getElementById('placeholder').classList.add('hidden');
             document.getElementById('resultsContainer').classList.add('hidden');
+            document.getElementById('errorState').classList.add('hidden');
             document.getElementById('loading').classList.remove('hidden');
 
-            // Mocking the backend call to kjv_search.py
-            setTimeout(() => {
-                displayResults(book, chapter);
-            }, 600);
+            try {
+                // Fetch the actual file exactly as search_kjvdat_pro opens 'kjvdat.txt'
+                const response = await fetch('kjvdat.txt');
+                if (!response.ok) throw new Error("File 'kjvdat.txt' not found.");
+                
+                const data = await response.text();
+                const lines = data.split(/\r?\n/);
+                
+                // Matches search_prefix = f"{book_abbr}|{chapter_num}|"
+                const searchPrefix = `${bookAbbr}|${chapterNum}|`;
+                const versesText = [];
+
+                for (let line of lines) {
+                    // clean_line = line.strip()
+                    const cleanLine = line.trim();
+                    
+                    // if clean_line.startswith(search_prefix):
+                    if (cleanLine.startsWith(searchPrefix)) {
+                        // parts = clean_line.split('|')
+                        const parts = cleanLine.split('|');
+                        
+                        // if len(parts) >= 4:
+                        if (parts.length >= 4) {
+                            const verseNum = parts[2];
+                            // text = parts[3].replace('~', '').strip()
+                            const text = parts[3].replace(/~/g, '').trim();
+                            
+                            // sub_v = get_subscript(verse_num)
+                            const subV = getSubscript(verseNum);
+                            // verses_text.append(f"{sub_V}{text}")
+                            versesText.push(`${subV}${text}`);
+                        }
+                    }
+                }
+
+                document.getElementById('loading').classList.add('hidden');
+
+                // if verses_text:
+                if (versesText.length > 0) {
+                    // full_text = " ".join(verses_text)
+                    const fullText = versesText.join(' ');
+                    
+                    document.getElementById('headerTitle').innerText = `--- ${bookAbbr.toUpperCase()} CHAPTER ${chapterNum} ---`;
+                    document.getElementById('bibleContent').innerHTML = fullText;
+                    document.getElementById('resultsContainer').classList.remove('hidden');
+                } else {
+                    showError(`Error: Could not find ${bookAbbr} ${chapterNum}.`);
+                }
+
+            } catch (err) {
+                document.getElementById('loading').classList.add('hidden');
+                showError(err.message);
+            }
         }
 
-        function displayResults(book, chapter) {
-            document.getElementById('loading').classList.add('hidden');
-            document.getElementById('resultsContainer').classList.remove('hidden');
-            
-            const headerTitle = document.getElementById('headerTitle');
-            headerTitle.innerText = `--- ${book.toUpperCase()} CHAPTER ${chapter} ---`;
-            
-            const bibleContent = document.getElementById('bibleContent');
-            
-            // Sample data structure representing the logic in kjv_search.py
-            const mockVerses = [
-                {v: "1", t: "In the beginning God created the heaven and the earth."},
-                {v: "2", t: "And the earth was without form, and void; and darkness was upon the face of the deep. And the Spirit of God moved upon the face of the waters."},
-                {v: "3", t: "And God said, Let there be light: and there was light."}
-            ];
-
-            const html = mockVerses.map(verse => {
-                return `<span class="inline-block mr-1"><span class="subscript">${getSubscript(verse.v)}</span>${verse.t}</span>`;
-            }).join(' ');
-
-            bibleContent.innerHTML = html;
+        function showError(msg) {
+            document.getElementById('errorMsg').innerText = msg;
+            document.getElementById('errorState').classList.remove('hidden');
         }
 
         document.addEventListener('keypress', function (e) {
