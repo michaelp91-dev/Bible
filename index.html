@@ -1,356 +1,171 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Search, Globe, ChevronRight, ChevronLeft, ArrowLeft, PlusCircle, History, Loader2, BookOpen } from 'lucide-react';
-
-// Helper for subscript verse numbers
-const getSubscript = (num) => {
-  const map = { "0": "₀", "1": "₁", "2": "₂", "3": "₃", "4": "₄", "5": "₅", "6": "₆", "7": "₇", "8": "₈", "9": "₉" };
-  return String(num).split('').map(c => map[c] || c).join('');
-};
-
-export default function App() {
-  const [view, setView] = useState('reading'); 
-  const [version, setVersion] = useState('KJV'); 
-  const [currentBook, setCurrentBook] = useState(null);
-  const [currentChapter, setCurrentChapter] = useState(1);
-  const [navStep, setNavStep] = useState('books'); 
-  const [inspectVerse, setInspectVerse] = useState(null);
-  const [notes, setNotes] = useState([]);
-  const [newNote, setNewNote] = useState('');
-  
-  const [booksData, setBooksData] = useState([]);
-  const [bibleData, setBibleData] = useState({ KJV: {}, VUL: {} });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  // --- Data Loading & Dynamic Book Generation ---
-  useEffect(() => {
-    const loadFiles = async () => {
-      try {
-        setLoading(true);
-        // We use KJV.txt for full names and English verses
-        // We use vuldat.txt for Latin comparison
-        const [kjvRes, vulRes] = await Promise.all([
-          fetch('KJV.txt'),
-          fetch('vuldat.txt')
-        ]);
-
-        if (!kjvRes.ok || !vulRes.ok) {
-          throw new Error("Could not find bible data files (KJV.txt and vuldat.txt) in the root folder.");
-        }
-
-        const [kjvText, vulText] = await Promise.all([kjvRes.text(), vulRes.text()]);
-
-        const kjvMap = {};
-        const vulMap = {};
-        const bookList = [];
-        const latinBookOrder = [];
-
-        // 1. Parse KJV.txt (Format: "Full Book Name Chapter:Verse\tText")
-        // Skips header lines (KJV / King James Bible...) and looks for verse patterns
-        const kjvLines = kjvText.split(/\r?\n/);
-        const kjvRegex = /^(.+)\s(\d+):(\d+)\t(.+)$/;
-
-        kjvLines.forEach(line => {
-          const match = line.match(kjvRegex);
-          if (match) {
-            const [_, bookName, chapter, verse, text] = match;
-            const cNum = parseInt(chapter);
-            const vNum = parseInt(verse);
-
-            if (!kjvMap[bookName]) {
-              kjvMap[bookName] = {};
-              bookList.push({ name: bookName, chapters: 0, order: bookList.length });
-            }
-            if (!kjvMap[bookName][cNum]) kjvMap[bookName][cNum] = [];
-            
-            kjvMap[bookName][cNum].push({ num: vNum, text: text.trim() });
-            
-            const bookObj = bookList.find(b => b.name === bookName);
-            if (cNum > bookObj.chapters) bookObj.chapters = cNum;
-          }
-        });
-
-        // 2. Parse vuldat.txt (Format: "Abbr|C|V|Text~")
-        vulText.split(/\r?\n/).forEach(line => {
-          const parts = line.split('|');
-          if (parts.length >= 4) {
-            const abbr = parts[0].trim();
-            const c = parts[1].trim();
-            const v = parts[2].trim();
-            const t = parts[3].replace('~', '').trim();
-            
-            if (!vulMap[abbr]) {
-              vulMap[abbr] = {};
-              latinBookOrder.push(abbr);
-            }
-            if (!vulMap[abbr][c]) vulMap[abbr][c] = [];
-            vulMap[abbr][c].push({ num: parseInt(v), text: t });
-          }
-        });
-
-        // 3. Link Full Names to Latin Abbrs based on order of appearance (Biblical Order)
-        const generatedBooks = bookList.map((book, index) => {
-          return {
-            ...book,
-            abbr: latinBookOrder[index] || book.name // Link to Latin index
-          };
-        });
-
-        setBooksData(generatedBooks);
-        setBibleData({ KJV: kjvMap, VUL: vulMap });
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KJV Bible Search</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;1,400&family=Inter:wght@400;600&display=swap');
         
-        if (generatedBooks.length > 0) {
-          setCurrentBook(generatedBooks[0]);
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
         }
         
-        setLoading(false);
-      } catch (err) {
-        setError(err.message);
-        setLoading(false);
-      }
-    };
-    loadFiles();
-  }, []);
+        .scripture-text {
+            font-family: 'Crimson Pro', serif;
+            line-height: 1.8;
+        }
 
-  // --- Derived State for Chapter Reading ---
-  const chapterVerses = useMemo(() => {
-    if (!currentBook) return [];
-    const kjv = bibleData.KJV[currentBook.name]?.[currentChapter] || [];
-    const vul = bibleData.VUL[currentBook.abbr]?.[currentChapter] || [];
-    
-    return kjv.map((v, i) => ({
-      num: v.num,
-      text: v.text,
-      lat: vul[i]?.text || "[Latin text not found for this verse]"
-    }));
-  }, [bibleData, currentBook, currentChapter]);
+        .subscript {
+            vertical-align: sub;
+            font-size: 0.75em;
+            margin-right: 0.2rem;
+            color: #64748b;
+            font-weight: 600;
+        }
 
-  // --- Handlers ---
-  const handleAddNote = () => {
-    if (!newNote.trim() || !currentBook) return;
-    setNotes([{
-      id: Date.now(),
-      verse: `${currentBook.name} ${currentChapter}:${inspectVerse}`,
-      content: newNote,
-      timestamp: new Date().toLocaleTimeString()
-    }, ...notes]);
-    setNewNote('');
-    setView('reading');
-  };
+        /* Custom scrollbar for a cleaner look */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
 
-  const changeChapter = (delta) => {
-    if (!currentBook) return;
-    const next = currentChapter + delta;
-    if (next >= 1 && next <= currentBook.chapters) {
-      setCurrentChapter(next);
-      window.scrollTo(0, 0);
-    }
-  };
-
-  if (loading) return (
-    <div className="h-screen flex flex-col items-center justify-center bg-white">
-      <Loader2 className="animate-spin text-blue-600 mb-4" size={48} />
-      <p className="text-neutral-500 animate-pulse font-medium tracking-tight">Extracting Full Book Names from KJV.txt...</p>
-    </div>
-  );
-
-  if (error || !currentBook) return (
-    <div className="h-screen flex flex-col items-center justify-center p-10 text-center">
-      <div className="bg-red-50 text-red-600 p-6 rounded-2xl border border-red-100 max-w-sm shadow-sm">
-        <h2 className="font-bold text-lg mb-2 tracking-tight">Resource Error</h2>
-        <p className="text-sm">{error || "No book data found."}</p>
-        <p className="text-xs mt-4 text-red-400 italic">Ensure KJV.txt and vuldat.txt are in the root directory.</p>
-      </div>
-    </div>
-  );
-
-  return (
-    <div className="flex flex-col h-screen bg-neutral-50 text-neutral-900 font-sans max-w-2xl mx-auto border-x shadow-xl overflow-hidden">
-      
-      {/* HEADER */}
-      <div className="bg-white border-b px-4 py-3 flex items-center justify-between sticky top-0 z-20 shadow-sm">
-        <button 
-          onClick={() => setVersion(v => v === 'KJV' ? 'VUL' : 'KJV')}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 text-blue-700 text-xs font-bold border border-blue-100 transition-colors hover:bg-blue-100"
-        >
-          <Globe size={14} /> {version}
-        </button>
-
-        <button 
-          onClick={() => { setView('navigation'); setNavStep('books'); }}
-          className="flex items-center gap-1 text-base font-black hover:bg-neutral-100 px-3 py-1 rounded-lg transition-colors truncate"
-        >
-          {currentBook.name} {currentChapter}
-          <ChevronRight size={16} className="text-neutral-300" />
-        </button>
-
-        <div className="flex gap-1">
-          <button onClick={() => setView('notes')} className="p-2 rounded-full hover:bg-neutral-100 text-neutral-500 transition-colors">
-            <History size={20} />
-          </button>
+    <!-- Navigation Header -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-10">
+        <div class="max-w-4xl mx-auto px-4 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <h1 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
+                KJV Search
+            </h1>
+            
+            <div class="flex gap-2 w-full sm:w-auto">
+                <input type="text" id="bookInput" placeholder="Book (e.g. Gen)" 
+                       class="w-full sm:w-32 px-3 py-2 bg-slate-50 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                <input type="number" id="chapterInput" placeholder="Ch" 
+                       class="w-20 px-3 py-2 bg-slate-50 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                <button onclick="handleSearch()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-semibold transition-colors">
+                    Search
+                </button>
+            </div>
         </div>
-      </div>
+    </header>
 
-      {/* BODY */}
-      <div className="flex-1 overflow-y-auto p-6 scroll-smooth">
+    <!-- Content Area -->
+    <main class="flex-grow max-w-4xl mx-auto w-full p-4">
         
-        {view === 'reading' && (
-          <div className="max-w-prose mx-auto">
-            <div className="text-center mb-10">
-              <span className="text-xs font-bold text-blue-500 uppercase tracking-widest block mb-1">
-                {version === 'KJV' ? 'King James English' : 'Latin Vulgate'}
-              </span>
-              <h1 className="text-4xl font-serif font-black">{currentBook.name} {currentChapter}</h1>
-            </div>
-
-            <div className="text-xl leading-relaxed text-neutral-800 font-serif">
-              {chapterVerses.map(v => (
-                <span 
-                  key={v.num} 
-                  onClick={() => { setInspectVerse(v.num); setView('inspect'); }}
-                  className="cursor-pointer hover:bg-blue-50 transition-colors rounded px-0.5 inline"
-                >
-                  <span className="text-blue-500 font-bold text-xs align-sub mr-1 select-none">
-                    {getSubscript(v.num)}
-                  </span>
-                  {version === 'KJV' ? v.text : v.lat}{' '}
-                </span>
-              ))}
-            </div>
-
-            <div className="mt-16 pt-8 border-t flex justify-between gap-4">
-              <button 
-                disabled={currentChapter === 1}
-                onClick={() => changeChapter(-1)}
-                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border font-bold disabled:opacity-20 hover:bg-white transition-all active:scale-95"
-              >
-                <ChevronLeft size={20} /> Previous
-              </button>
-              <button 
-                disabled={currentChapter === currentBook.chapters}
-                onClick={() => changeChapter(1)}
-                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border font-bold disabled:opacity-20 hover:bg-white transition-all active:scale-95"
-              >
-                Next <ChevronRight size={20} />
-              </button>
-            </div>
-          </div>
-        )}
-
-        {view === 'navigation' && (
-          <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div className="flex items-center gap-3 mb-6">
-              <button onClick={() => setView('reading')} className="p-2 hover:bg-neutral-100 rounded-full">
-                <ArrowLeft size={20} />
-              </button>
-              <h2 className="text-xl font-bold">{navStep === 'books' ? 'Select Book' : currentBook.name}</h2>
-            </div>
-
-            {navStep === 'books' ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pb-10">
-                {booksData.map(b => (
-                  <button 
-                    key={b.name}
-                    onClick={() => { setCurrentBook(b); setNavStep('chapters'); }}
-                    className={`p-4 text-left rounded-xl border transition-all ${currentBook.name === b.name ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white hover:border-blue-400'}`}
-                  >
-                    <div className="font-bold text-sm tracking-tight">{b.name}</div>
-                    <div className={`text-[10px] uppercase font-bold tracking-tighter ${currentBook.name === b.name ? 'text-blue-200' : 'text-neutral-400'}`}>
-                      {b.chapters} Chapters
-                    </div>
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <div className="grid grid-cols-5 gap-2 pb-10">
-                {Array.from({ length: currentBook.chapters }, (_, i) => i + 1).map(c => (
-                  <button 
-                    key={c}
-                    onClick={() => { setCurrentChapter(c); setView('reading'); }}
-                    className={`aspect-square flex items-center justify-center rounded-xl border font-bold ${currentChapter === c ? 'bg-blue-600 text-white border-blue-600' : 'bg-white hover:border-blue-400 hover:shadow-sm'}`}
-                  >
-                    {c}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {view === 'inspect' && inspectVerse && (
-          <div className="space-y-6 animate-in slide-in-from-right-2 duration-300">
-            <button onClick={() => setView('reading')} className="flex items-center gap-2 text-blue-600 font-bold hover:underline">
-              <ArrowLeft size={18} /> Back to Reading
-            </button>
-            
-            <div className="bg-white p-6 rounded-3xl border shadow-sm space-y-6">
-              <div>
-                <span className="text-[10px] font-black uppercase text-neutral-400 tracking-tighter">English Text</span>
-                <p className="text-xl font-serif mt-1">{chapterVerses[inspectVerse-1]?.text}</p>
-              </div>
-              <div className="pt-6 border-t">
-                <span className="text-[10px] font-black uppercase text-blue-500 tracking-tighter">Latin Vulgate</span>
-                <p className="text-xl font-serif text-blue-900 mt-1">{chapterVerses[inspectVerse-1]?.lat}</p>
-              </div>
-            </div>
-
-            <div className="bg-white p-6 rounded-3xl border shadow-sm">
-              <h3 className="font-bold text-neutral-700 flex items-center gap-2 mb-4">
-                <PlusCircle size={18} className="text-blue-500" /> Verse Study Note
-              </h3>
-              <textarea 
-                className="w-full p-4 border rounded-2xl bg-neutral-50 focus:ring-2 focus:ring-blue-500 outline-none h-32 text-base shadow-inner"
-                placeholder="Type your study notes here..."
-                value={newNote}
-                onChange={(e) => setNewNote(e.target.value)}
-              />
-              <button 
-                onClick={handleAddNote}
-                className="mt-4 w-full bg-blue-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 active:scale-95 transition-all"
-              >
-                Save Note
-              </button>
-            </div>
-          </div>
-        )}
-
-        {view === 'notes' && (
-          <div className="space-y-4 animate-in fade-in duration-300">
-            <div className="flex items-center gap-3 mb-6">
-              <button onClick={() => setView('reading')} className="p-2 hover:bg-neutral-100 rounded-full">
-                <ArrowLeft size={20} />
-              </button>
-              <h2 className="text-xl font-bold">Session Notes</h2>
-            </div>
-
-            {notes.length === 0 ? (
-              <div className="text-center py-20 opacity-30">
-                <BookOpen size={64} className="mx-auto mb-4" />
-                <p className="font-bold">No notes recorded.</p>
-              </div>
-            ) : (
-              notes.map(n => (
-                <div key={n.id} className="bg-white p-5 rounded-2xl border shadow-sm">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-[10px] font-black bg-blue-50 text-blue-600 px-2 py-1 rounded-md uppercase tracking-tighter">{n.verse}</span>
-                    <span className="text-[10px] text-neutral-400 font-bold uppercase">{n.timestamp}</span>
-                  </div>
-                  <p className="text-neutral-700 leading-relaxed">{n.content}</p>
+        <div id="resultsContainer" class="hidden">
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="border-b border-slate-100 bg-slate-50 px-6 py-4 flex justify-between items-center">
+                    <h2 id="headerTitle" class="text-lg font-semibold text-slate-700 uppercase tracking-widest">--- GENESIS CHAPTER 1 ---</h2>
+                    <span class="text-xs text-slate-400 font-mono">kjv_search.py output</span>
                 </div>
-              ))
-            )}
-          </div>
-        )}
+                
+                <div class="p-6 sm:p-10 scripture-text text-xl text-slate-800" id="bibleContent">
+                    <!-- Verses will be injected here -->
+                </div>
 
-      </div>
-
-      <div className="bg-white border-t p-4 text-[10px] font-bold uppercase tracking-widest text-neutral-400 flex justify-between items-center">
-        <span>Source: KJV.txt & vuldat.txt</span>
-        <div className="flex items-center gap-1.5 text-green-500">
-          <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-          Live Connection
+                <div class="border-t border-slate-100 bg-slate-50 px-6 py-3 text-center">
+                    <div class="h-1 w-full bg-slate-200 rounded-full relative overflow-hidden">
+                        <div class="absolute inset-0 bg-indigo-200 w-full opacity-50"></div>
+                    </div>
+                </div>
+            </div>
         </div>
-      </div>
-    </div>
-  );
-}
+
+        <!-- Placeholder / Empty State -->
+        <div id="placeholder" class="py-20 text-center">
+            <div class="bg-indigo-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+            </div>
+            <h3 class="text-slate-600 font-medium">Ready to search</h3>
+            <p class="text-slate-400 text-sm mt-1">Enter a book abbreviation and chapter to begin.</p>
+        </div>
+
+        <!-- Loading State -->
+        <div id="loading" class="hidden py-20 text-center">
+            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+            <p class="text-slate-500">Processing with kjv_search.py...</p>
+        </div>
+
+    </main>
+
+    <footer class="py-8 text-center text-slate-400 text-sm">
+        <p>Built with Python (backend) and Tailwind CSS (frontend)</p>
+    </footer>
+
+    <script>
+        // Subscript mapping logic from your kjv_search.py
+        function getSubscript(number) {
+            const subMap = {
+                "0": "₀", "1": "₁", "2": "₂", "3": "₃", "4": "₄",
+                "5": "₅", "6": "₆", "7": "₇", "8": "₈", "9": "₉"
+            };
+            return String(number).split('').map(char => subMap[char] || char).join('');
+        }
+
+        async function handleSearch() {
+            const book = document.getElementById('bookInput').value.trim();
+            const chapter = document.getElementById('chapterInput').value.trim();
+            
+            if (!book || !chapter) return;
+
+            // UI State management
+            document.getElementById('placeholder').classList.add('hidden');
+            document.getElementById('resultsContainer').classList.add('hidden');
+            document.getElementById('loading').classList.remove('hidden');
+
+            // Mocking the backend call to kjv_search.py
+            setTimeout(() => {
+                displayResults(book, chapter);
+            }, 600);
+        }
+
+        function displayResults(book, chapter) {
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('resultsContainer').classList.remove('hidden');
+            
+            const headerTitle = document.getElementById('headerTitle');
+            headerTitle.innerText = `--- ${book.toUpperCase()} CHAPTER ${chapter} ---`;
+            
+            const bibleContent = document.getElementById('bibleContent');
+            
+            // Sample data structure representing the logic in kjv_search.py
+            const mockVerses = [
+                {v: "1", t: "In the beginning God created the heaven and the earth."},
+                {v: "2", t: "And the earth was without form, and void; and darkness was upon the face of the deep. And the Spirit of God moved upon the face of the waters."},
+                {v: "3", t: "And God said, Let there be light: and there was light."}
+            ];
+
+            const html = mockVerses.map(verse => {
+                return `<span class="inline-block mr-1"><span class="subscript">${getSubscript(verse.v)}</span>${verse.t}</span>`;
+            }).join(' ');
+
+            bibleContent.innerHTML = html;
+        }
+
+        document.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                handleSearch();
+            }
+        });
+    </script>
+</body>
+</html>
