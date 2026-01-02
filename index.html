@@ -3,493 +3,379 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>KJV Bible Reader</title>
+    <title>KJV Study Bible</title>
     <style>
         :root {
-            --primary: #2c3e50;
-            --accent: #3498db;
-            --bg: #fdfdfd;
-            --text: #333;
-            --verse-num: #888;
-            --highlight: #e1f5fe;
+            --primary: #1a237e;
+            --accent: #0288d1;
+            --bg: #ffffff;
+            --text: #212121;
+            --verse-num: #9e9e9e;
+            --highlight: #e3f2fd;
+            --note-bg: #fff9c4;
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background: var(--bg);
-            color: var(--text);
-            line-height: 1.6;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0; padding: 0; background: var(--bg); color: var(--text); line-height: 1.6;
+            -webkit-tap-highlight-color: transparent;
         }
 
-        /* Header & Navigation */
+        /* Header & Search */
         header {
-            position: sticky;
-            top: 0;
-            background: var(--primary);
-            color: white;
-            padding: 10px;
-            z-index: 100;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            position: sticky; top: 0; background: var(--primary); color: white;
+            padding: 10px; z-index: 100; box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
 
-        .nav-controls {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-
+        .nav-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        
         #nav-title {
-            background: none;
-            border: 1px solid rgba(255,255,255,0.3);
-            color: white;
-            padding: 8px 15px;
-            border-radius: 20px;
-            font-size: 1.1rem;
-            font-weight: bold;
-            cursor: pointer;
+            background: rgba(255,255,255,0.15); border: none; color: white;
+            padding: 8px 16px; border-radius: 4px; font-size: 1.1rem; font-weight: bold; cursor: pointer;
         }
 
-        .search-container {
-            display: flex;
-            gap: 5px;
-        }
-
+        .search-row { display: flex; gap: 5px; }
         input[type="text"] {
-            flex-grow: 1;
-            padding: 10px;
-            border-radius: 5px;
-            border: none;
-            font-size: 16px; /* Prevents auto-zoom on iOS */
+            flex-grow: 1; padding: 10px; border-radius: 4px; border: none; font-size: 16px;
         }
 
-        /* Content Area */
-        #content {
-            padding: 15px;
-            max-width: 800px;
-            margin: 0 auto;
-            padding-bottom: 80px;
-        }
-
-        .verse {
-            margin-bottom: 12px;
-            padding: 4px;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-
-        .verse.selected {
-            background-color: var(--highlight);
-            border-left: 3px solid var(--accent);
-        }
-
-        .v-num {
-            font-size: 0.8rem;
-            font-weight: bold;
-            color: var(--verse-num);
-            margin-right: 8px;
-            vertical-align: top;
-        }
-
-        .has-note-indicator {
-            color: var(--accent);
-            font-size: 0.7rem;
-            margin-left: 5px;
-        }
+        /* Content */
+        #content { padding: 15px; max-width: 800px; margin: 0 auto; padding-bottom: 100px; }
+        
+        .verse { margin-bottom: 10px; padding: 5px; border-radius: 4px; cursor: pointer; }
+        .verse.selected { background-color: var(--highlight); border-left: 4px solid var(--accent); }
+        .v-num { font-size: 0.8rem; font-weight: bold; color: var(--verse-num); margin-right: 8px; }
+        .note-indicator { display: inline-block; width: 8px; height: 8px; background: #ffd600; border-radius: 50%; margin-left: 5px; }
 
         /* Modals */
         .modal {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.7);
-            z-index: 1000;
-            overflow-y: auto;
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6); z-index: 1000; overflow-y: auto;
         }
-
         .modal-content {
-            background: white;
-            margin: 20px auto;
-            padding: 20px;
-            width: 90%;
-            max-width: 500px;
-            border-radius: 10px;
+            background: white; margin: 15px auto; padding: 20px; width: 90%; 
+            max-width: 500px; border-radius: 12px; position: relative;
         }
 
-        .grid-list {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-            gap: 10px;
-            margin-top: 20px;
-        }
+        .grid-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(85px, 1fr)); gap: 8px; margin-top: 15px; }
+        .grid-item { padding: 12px 5px; text-align: center; background: #f5f5f5; border-radius: 6px; font-size: 0.9rem; cursor: pointer; }
+        .grid-item:active { background: #e0e0e0; }
 
-        .grid-item {
-            padding: 10px;
-            text-align: center;
-            background: #eee;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-
-        /* Note Controls */
-        #note-editor {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        textarea {
-            width: 100%;
-            height: 100px;
-            padding: 10px;
-            box-sizing: border-box;
-        }
-
-        .note-item {
-            border-bottom: 1px solid #ddd;
-            padding: 10px 0;
-        }
-
-        .note-link {
-            color: var(--accent);
-            text-decoration: underline;
-            cursor: pointer;
-        }
-
-        .btn {
-            padding: 10px 15px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-
+        /* Notes UI */
+        #note-editor-area { display: flex; flex-direction: column; gap: 10px; }
+        textarea { width: 100%; height: 120px; padding: 10px; box-sizing: border-box; font-size: 16px; border: 1px solid #ddd; border-radius: 4px; }
+        
+        .note-card { background: #fdfdfd; border: 1px solid #eee; padding: 12px; margin-bottom: 15px; border-radius: 8px; }
+        .note-text { white-space: pre-wrap; margin-bottom: 10px; }
+        .note-links-row { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; }
+        .ref-link { background: var(--highlight); color: var(--primary); padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: bold; cursor: pointer; }
+        
+        .note-actions { display: flex; gap: 10px; }
+        .btn { padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
         .btn-primary { background: var(--accent); color: white; }
-        .btn-danger { background: #e74c3c; color: white; }
-
-        .floating-actions {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
+        .btn-outline { background: #eee; color: #333; }
+        .btn-danger { background: #ff5252; color: white; }
 
         .fab {
-            width: 56px;
-            height: 56px;
-            border-radius: 50%;
-            background: var(--accent);
-            color: white;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            border: none;
+            position: fixed; bottom: 20px; right: 20px; width: 60px; height: 60px;
+            border-radius: 50%; background: var(--accent); color: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3); border: none; font-size: 24px;
+            display: none; align-items: center; justify-content: center; z-index: 99;
         }
     </style>
 </head>
 <body>
 
 <header>
-    <div class="nav-controls">
-        <button id="nav-title" onclick="openBookNav()">Genesis 1</button>
-        <button class="btn btn-primary" onclick="toggleNotesModal()">Show Notes</button>
+    <div class="nav-row">
+        <button id="nav-title" onclick="openBookNav()">Loading...</button>
+        <button class="btn btn-outline" style="font-size: 0.8rem" onclick="showAllNotes()">Show Notes</button>
     </div>
-    <div class="search-container">
-        <input type="text" id="search-input" placeholder="Search (e.g. John 3:16 or 'Jesus wept')">
-        <button class="btn btn-primary" onclick="handleSearch()">Go</button>
+    <div class="search-row">
+        <input type="text" id="search-input" placeholder="Search John 3:16 or 'love'">
+        <button class="btn btn-primary" onclick="executeSearch()">Go</button>
     </div>
 </header>
 
 <main id="content">
-    <div id="loading">Loading Bible Data...</div>
+    <div style="text-align: center; margin-top: 50px;">Parsing kjvdat.txt...</div>
 </main>
 
-<div class="floating-actions" id="selection-actions" style="display:none;">
-    <button class="fab" onclick="openNoteEditor()">📝</button>
-</div>
+<button id="add-note-fab" class="fab" onclick="openNoteEditor()"><span>+</span></button>
 
 <div id="nav-modal" class="modal">
     <div class="modal-content">
-        <h3 id="modal-heading">Select Book</h3>
-        <div id="modal-list" class="grid-list"></div>
-        <button class="btn btn-danger" style="margin-top:20px" onclick="closeModal('nav-modal')">Close</button>
+        <h3 id="nav-modal-title">Select Book</h3>
+        <div id="nav-modal-list" class="grid-list"></div>
+        <button class="btn btn-outline" style="margin-top:20px; width:100%" onclick="closeModal('nav-modal')">Cancel</button>
     </div>
 </div>
 
 <div id="note-modal" class="modal">
     <div class="modal-content">
-        <h3>Add/Edit Note</h3>
-        <p id="note-target-label"></p>
-        <div id="note-editor">
-            <textarea id="note-text" placeholder="Type your note here..."></textarea>
-            <input type="text" id="note-link" placeholder="Link to verse (e.g. Rom 5:8)">
+        <h3 id="note-title">New Note</h3>
+        <p id="note-verses-label" style="font-size: 0.9rem; color: #666;"></p>
+        <div id="note-editor-area">
+            <textarea id="note-input" placeholder="Enter note... use @John3:16 to link verses"></textarea>
             <button class="btn btn-primary" onclick="saveNote()">Save Note</button>
+            <button class="btn btn-outline" onclick="closeModal('note-modal')">Close</button>
         </div>
-        <hr>
-        <div id="existing-notes-for-verse"></div>
-        <button class="btn btn-danger" onclick="closeModal('note-modal')">Close</button>
     </div>
 </div>
 
-<div id="all-notes-modal" class="modal">
+<div id="list-notes-modal" class="modal">
     <div class="modal-content">
         <h3>Chapter Notes</h3>
-        <div id="chapter-notes-list"></div>
-        <button class="btn btn-danger" style="margin-top:20px" onclick="closeModal('all-notes-modal')">Close</button>
+        <div id="notes-list-container"></div>
+        <button class="btn btn-outline" style="margin-top:20px; width:100%" onclick="closeModal('list-notes-modal')">Close</button>
     </div>
 </div>
 
 <script>
     let bibleData = [];
+    let books = []; // List of unique book codes from file
     let currentBook = "Gen";
     let currentChapter = "1";
     let selectedVerses = [];
-    let notes = JSON.parse(localStorage.getItem('bible_notes') || '[]');
+    let notes = JSON.parse(localStorage.getItem('kjv_notes_v2') || '[]');
+    let editingNoteId = null;
 
-    const bookNames = {
+    // Full names for display, mapping from the file's 3-letter codes
+    const bookMap = {
         "Gen": "Genesis", "Exo": "Exodus", "Lev": "Leviticus", "Num": "Numbers", "Deu": "Deuteronomy",
         "Jos": "Joshua", "Jud": "Judges", "Rut": "Ruth", "1Sa": "1 Samuel", "2Sa": "2 Samuel",
         "1Ki": "1 Kings", "2Ki": "2 Kings", "1Ch": "1 Chronicles", "2Ch": "2 Chronicles", "Ezr": "Ezra",
         "Neh": "Nehemiah", "Est": "Esther", "Job": "Job", "Psa": "Psalms", "Pro": "Proverbs",
         "Ecc": "Ecclesiastes", "Sol": "Song of Solomon", "Isa": "Isaiah", "Jer": "Jeremiah", "Lam": "Lamentations",
-        "Eze": "Ezekiel", "Dan": "Daniel", "Hos": "Hosea", "Joe": "Joel", "Amo": "Amos",
-        "Oba": "Obadiah", "Jon": "Jonah", "Mic": "Micah", "Nah": "Nahum", "Hab": "Habakkuk",
-        "Zep": "Zephaniah", "Hag": "Haggar", "Zec": "Zechariah", "Mal": "Malachi", "Mat": "Matthew",
-        "Mar": "Mark", "Luk": "Luke", "Joh": "John", "Act": "Acts", "Rom": "Romans",
-        "1Co": "1 Corinthians", "2Co": "2 Corinthians", "Gal": "Galatians", "Eph": "Ephesians", "Phi": "Philippians",
-        "Col": "Colossians", "1Th": "1 Thessalonians", "2Th": "2 Thessalonians", "1Ti": "1 Timothy", "2Ti": "2 Timothy",
-        "Tit": "Titus", "Phm": "Philemon", "Heb": "Hebrews", "Jam": "James", "1Pe": "1 Peter",
-        "2Pe": "2 Peter", "1Jo": "1 John", "2Jo": "2 John", "3Jo": "3 John", "Jud": "Jude", "Rev": "Revelation"
+        "Eze": "Ezekiel", "Dan": "Daniel", "Hos": "Hosea", "Joe": "Joel", "Amo": "Amos", "Oba": "Obadiah",
+        "Jon": "Jonah", "Mic": "Micah", "Nah": "Nahum", "Hab": "Habakkuk", "Zep": "Zephaniah", "Hag": "Haggai",
+        "Zec": "Zechariah", "Mal": "Malachi", "Mat": "Matthew", "Mar": "Mark", "Luk": "Luke", "Joh": "John",
+        "Act": "Acts", "Rom": "Romans", "1Co": "1 Corinthians", "2Co": "2 Corinthians", "Gal": "Galatians",
+        "Eph": "Ephesians", "Phi": "Philippians", "Col": "Colossians", "1Th": "1 Thessalonians", "2Th": "2 Thessalonians",
+        "1Ti": "1 Timothy", "2Ti": "2 Timothy", "Tit": "Titus", "Phm": "Philemon", "Heb": "Hebrews", "Jam": "James",
+        "1Pe": "1 Peter", "2Pe": "2 Peter", "1Jo": "1 John", "2Jo": "2 John", "3Jo": "3 John", "Jud": "Jude", "Rev": "Revelation"
     };
 
-    // Load Data
+    // Load and Parse File
     fetch('kjvdat.txt')
-        .then(response => response.text())
-        .then(text => {
-            const lines = text.split('\n');
-            bibleData = lines.filter(l => l.trim()).map(line => {
-                const parts = line.split('|');
-                return {
-                    book: parts[0],
-                    chapter: parts[1],
-                    verse: parts[2],
-                    text: parts[3].replace('~', '').trim()
-                };
+        .then(r => r.text())
+        .then(data => {
+            const lines = data.split('\n');
+            bibleData = lines.filter(l => l.trim()).map(l => {
+                const p = l.split('|');
+                return { b: p[0], c: p[1], v: p[2], t: p[3].replace('~', '').trim() };
             });
+            
+            // Get unique books from the actual data to avoid missing any
+            books = [...new Set(bibleData.map(v => v.b))];
             renderChapter();
         })
-        .catch(err => {
-            document.getElementById('content').innerHTML = "Error loading bible file. Ensure kjvdat.txt is in the same folder.";
+        .catch(e => {
+            document.getElementById('content').innerText = "Error loading kjvdat.txt. Make sure it's in the same folder.";
         });
 
     function renderChapter() {
-        const content = document.getElementById('content');
         const titleBtn = document.getElementById('nav-title');
-        titleBtn.innerText = `${bookNames[currentBook]} ${currentChapter}`;
+        titleBtn.innerText = `${bookMap[currentBook] || currentBook} ${currentChapter}`;
         
-        const verses = bibleData.filter(v => v.book === currentBook && v.chapter === currentChapter);
+        const container = document.getElementById('content');
+        const verses = bibleData.filter(v => v.b === currentBook && v.c === currentChapter);
         
-        content.innerHTML = verses.map(v => {
-            const verseId = `${v.book}|${v.chapter}|${v.verse}`;
-            const hasNote = notes.some(n => n.verseId === verseId);
+        container.innerHTML = verses.map(v => {
+            const vId = `${v.b}|${v.c}|${v.v}`;
+            const hasNote = notes.some(n => n.b === v.b && n.c === v.c && n.verses.includes(v.v));
             return `
-                <div class="verse" id="v-${v.verse}" onclick="toggleVerseSelection('${v.verse}')">
-                    <span class="v-num">${v.verse}</span>
-                    <span class="v-text">${v.text}</span>
-                    ${hasNote ? '<span class="has-note-indicator">●</span>' : ''}
+                <div class="verse ${selectedVerses.includes(v.v) ? 'selected' : ''}" onclick="selectVerse('${v.v}')" id="v-${v.v}">
+                    <span class="v-num">${v.v}</span>${v.t}
+                    ${hasNote ? '<span class="note-indicator"></span>' : ''}
                 </div>
             `;
         }).join('');
         
-        selectedVerses = [];
-        updateSelectionUI();
-        window.scrollTo(0,0);
+        updateFab();
     }
 
-    // Selection Logic
-    function toggleVerseSelection(verseNum) {
-        const idx = selectedVerses.indexOf(verseNum);
-        const element = document.getElementById(`v-${verseNum}`);
-        
-        if (idx > -1) {
-            selectedVerses.splice(idx, 1);
-            element.classList.remove('selected');
-        } else {
-            selectedVerses.push(verseNum);
-            element.classList.add('selected');
-        }
-        updateSelectionUI();
+    function selectVerse(vNum) {
+        const idx = selectedVerses.indexOf(vNum);
+        if (idx > -1) selectedVerses.splice(idx, 1);
+        else selectedVerses.push(vNum);
+        renderChapter();
     }
 
-    function updateSelectionUI() {
-        const fab = document.getElementById('selection-actions');
-        fab.style.display = selectedVerses.length > 0 ? 'flex' : 'none';
+    function updateFab() {
+        document.getElementById('add-note-fab').style.display = selectedVerses.length > 0 ? 'flex' : 'none';
     }
 
-    // Navigation Modals
+    // Navigation
     function openBookNav() {
-        const list = document.getElementById('modal-list');
-        document.getElementById('modal-heading').innerText = "Select Book";
-        list.innerHTML = Object.entries(bookNames).map(([code, name]) => `
-            <div class="grid-item" onclick="selectBook('${code}')">${name}</div>
+        const list = document.getElementById('nav-modal-list');
+        document.getElementById('nav-modal-title').innerText = "Select Book";
+        list.innerHTML = books.map(b => `
+            <div class="grid-item" onclick="pickBook('${b}')">${bookMap[b] || b}</div>
         `).join('');
         document.getElementById('nav-modal').style.display = 'block';
     }
 
-    function selectBook(code) {
-        currentBook = code;
-        const chapters = [...new Set(bibleData.filter(v => v.book === code).map(v => v.chapter))];
-        const list = document.getElementById('modal-list');
-        document.getElementById('modal-heading').innerText = "Select Chapter";
-        list.innerHTML = chapters.map(ch => `
-            <div class="grid-item" onclick="selectChapter('${ch}')">${ch}</div>
+    function pickBook(b) {
+        currentBook = b;
+        const chapters = [...new Set(bibleData.filter(v => v.b === b).map(v => v.c))];
+        const list = document.getElementById('nav-modal-list');
+        document.getElementById('nav-modal-title').innerText = "Select Chapter";
+        list.innerHTML = chapters.map(c => `
+            <div class="grid-item" onclick="pickChapter('${c}')">${c}</div>
         `).join('');
     }
 
-    function selectChapter(ch) {
-        currentChapter = ch;
+    function pickChapter(c) {
+        currentChapter = c;
+        selectedVerses = [];
         closeModal('nav-modal');
+        renderChapter();
+        window.scrollTo(0,0);
+    }
+
+    function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+    // Notes Core
+    function openNoteEditor(noteId = null) {
+        editingNoteId = noteId;
+        const input = document.getElementById('note-input');
+        const label = document.getElementById('note-verses-label');
+        
+        if (noteId) {
+            const n = notes.find(x => x.id === noteId);
+            input.value = n.text;
+            label.innerText = `Editing Note for: ${bookMap[n.b]} ${n.c}:${n.verses.join(', ')}`;
+        } else {
+            selectedVerses.sort((a,b) => parseInt(a)-parseInt(b));
+            input.value = "";
+            label.innerText = `New Note for: ${bookMap[currentBook]} ${currentChapter}:${selectedVerses.join(', ')}`;
+        }
+        
+        document.getElementById('note-modal').style.display = 'block';
+    }
+
+    function saveNote() {
+        const text = document.getElementById('note-input').value.trim();
+        if (!text) return;
+
+        if (editingNoteId) {
+            const n = notes.find(x => x.id === editingNoteId);
+            n.text = text;
+        } else {
+            notes.push({
+                id: Date.now(),
+                b: currentBook,
+                c: currentChapter,
+                verses: [...selectedVerses],
+                text: text
+            });
+        }
+        
+        localStorage.setItem('kjv_notes_v2', JSON.stringify(notes));
+        selectedVerses = [];
+        closeModal('note-modal');
+        closeModal('list-notes-modal');
         renderChapter();
     }
 
-    function closeModal(id) {
-        document.getElementById(id).style.display = 'none';
+    function deleteNote(id) {
+        if (!confirm("Delete this note?")) return;
+        notes = notes.filter(n => n.id !== id);
+        localStorage.setItem('kjv_notes_v2', JSON.stringify(notes));
+        showAllNotes();
+        renderChapter();
+    }
+
+    function showAllNotes() {
+        const container = document.getElementById('notes-list-container');
+        const chapterNotes = notes.filter(n => n.b === currentBook && n.c === currentChapter);
+        
+        if (chapterNotes.length === 0) {
+            container.innerHTML = "<p>No notes for this chapter.</p>";
+        } else {
+            container.innerHTML = chapterNotes.map(n => {
+                const links = parseLinks(n.text);
+                return `
+                    <div class="note-card">
+                        <div style="font-weight:bold; color:var(--accent); font-size:0.8rem; margin-bottom:5px;">
+                            Verse ${n.verses.join(', ')}
+                        </div>
+                        <div class="note-text">${n.text}</div>
+                        <div class="note-links-row">${links.map(l => `<span class="ref-link" onclick="jumpToLink('${l}')">${l}</span>`).join('')}</div>
+                        <div class="note-actions">
+                            <button class="btn btn-outline" style="padding:5px 10px; font-size:0.75rem;" onclick="openNoteEditor(${n.id})">Edit</button>
+                            <button class="btn btn-danger" style="padding:5px 10px; font-size:0.75rem;" onclick="deleteNote(${n.id})">Delete</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        document.getElementById('list-notes-modal').style.display = 'block';
+    }
+
+    // Linking Logic (@John3:16)
+    function parseLinks(text) {
+        const regex = /@([1-3]?\s?[a-zA-Z]+)(\d+):(\d+)(?:-(\d+))?/g;
+        const matches = [...text.matchAll(regex)];
+        return matches.map(m => m[0]);
+    }
+
+    function jumpToLink(atRef) {
+        const cleanRef = atRef.replace('@', '');
+        document.getElementById('search-input').value = cleanRef;
+        closeModal('list-notes-modal');
+        executeSearch();
     }
 
     // Search Logic
-    function handleSearch() {
+    function executeSearch() {
         const query = document.getElementById('search-input').value.trim();
         if (!query) return;
 
-        // Try Book Chapter:Verse pattern
-        const refMatch = query.match(/^(\d?\s?[a-zA-Z]+)\s*(\d+)(?::(\d+))?$/);
-        if (refMatch) {
-            const inputBook = refMatch[1].toLowerCase().replace(/\s/g, '');
-            const bookCode = Object.keys(bookNames).find(code => 
-                bookNames[code].toLowerCase().replace(/\s/g, '').includes(inputBook) || code.toLowerCase() === inputBook
+        // Try Reference Search: @Romans5:8 or Romans 5:8
+        const refRegex = /^([1-3]?\s?[a-zA-Z]+)\s?(\d+):(\d+)(?:-(\d+))?$/;
+        const match = query.match(refRegex);
+
+        if (match) {
+            const bQuery = match[1].toLowerCase().replace(/\s/g, '');
+            const targetBook = books.find(code => 
+                code.toLowerCase() === bQuery || 
+                (bookMap[code] && bookMap[code].toLowerCase().replace(/\s/g, '').includes(bQuery))
             );
 
-            if (bookCode) {
-                currentBook = bookCode;
-                currentChapter = refMatch[2];
+            if (targetBook) {
+                currentBook = targetBook;
+                currentChapter = match[2];
+                selectedVerses = [match[3]];
                 renderChapter();
-                if (refMatch[3]) {
-                    setTimeout(() => {
-                        const el = document.getElementById(`v-${refMatch[3]}`);
-                        if (el) el.scrollIntoView();
-                        toggleVerseSelection(refMatch[3]);
-                    }, 100);
-                }
+                setTimeout(() => {
+                    const el = document.getElementById(`v-${match[3]}`);
+                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 200);
                 return;
             }
         }
 
         // Keyword Search
-        const results = bibleData.filter(v => v.text.toLowerCase().includes(query.toLowerCase())).slice(0, 50);
-        const content = document.getElementById('content');
-        content.innerHTML = `<h3>Search Results for "${query}"</h3>` + (results.length ? results.map(v => `
-            <div class="verse" onclick="goToVerse('${v.book}', '${v.chapter}', '${v.verse}')">
-                <small>${bookNames[v.book]} ${v.chapter}:${v.verse}</small><br>${v.text}
+        const results = bibleData.filter(v => v.t.toLowerCase().includes(query.toLowerCase())).slice(0, 50);
+        const container = document.getElementById('content');
+        container.innerHTML = `<h4>Search: "${query}"</h4>` + (results.length ? results.map(r => `
+            <div class="verse" onclick="goTo('${r.b}','${r.c}','${r.v}')">
+                <small><strong>${bookMap[r.b] || r.b} ${r.c}:${r.v}</strong></small><br>${r.t}
             </div>
-        `).join('') : '<p>No results found</p>');
+        `).join('') : "No results.");
     }
 
-    function goToVerse(b, c, v) {
+    function goTo(b, c, v) {
         currentBook = b;
         currentChapter = c;
+        selectedVerses = [v];
         renderChapter();
         setTimeout(() => {
-            const el = document.getElementById(`v-${v}`);
-            if (el) el.scrollIntoView();
-            toggleVerseSelection(v);
+            document.getElementById(`v-${v}`).scrollIntoView({ behavior: 'smooth', block: 'center' });
         }, 100);
     }
-
-    // Notes Logic
-    function openNoteEditor() {
-        selectedVerses.sort((a,b) => parseInt(a) - parseInt(b));
-        const rangeLabel = selectedVerses.length > 1 
-            ? `${bookNames[currentBook]} ${currentChapter}:${selectedVerses[0]}-${selectedVerses[selectedVerses.length-1]}`
-            : `${bookNames[currentBook]} ${currentChapter}:${selectedVerses[0]}`;
-        
-        document.getElementById('note-target-label').innerText = "Note for: " + rangeLabel;
-        document.getElementById('note-text').value = "";
-        document.getElementById('note-link').value = "";
-        
-        renderExistingNotes();
-        document.getElementById('note-modal').style.display = 'block';
-    }
-
-    function saveNote() {
-        const text = document.getElementById('note-text').value;
-        const link = document.getElementById('note-link').value;
-        if (!text) return;
-
-        const verseId = `${currentBook}|${currentChapter}|${selectedVerses[0]}`; // Associated with start verse
-        const newNote = {
-            id: Date.now(),
-            verseId: verseId,
-            range: [...selectedVerses],
-            book: currentBook,
-            chapter: currentChapter,
-            text: text,
-            link: link
-        };
-
-        notes.push(newNote);
-        localStorage.setItem('bible_notes', JSON.stringify(notes));
-        renderChapter();
-        closeModal('note-modal');
-    }
-
-    function deleteNote(id) {
-        notes = notes.filter(n => n.id !== id);
-        localStorage.setItem('bible_notes', JSON.stringify(notes));
-        renderExistingNotes();
-        renderChapter();
-    }
-
-    function renderExistingNotes() {
-        const verseId = `${currentBook}|${currentChapter}|${selectedVerses[0]}`;
-        const verseNotes = notes.filter(n => n.verseId === verseId);
-        const container = document.getElementById('existing-notes-for-verse');
-        container.innerHTML = verseNotes.map(n => `
-            <div class="note-item">
-                <p>${n.text}</p>
-                ${n.link ? `<small class="note-link" onclick="handleSearchLink('${n.link}')">Link: ${n.link}</small>` : ''}
-                <br><button class="btn btn-danger" onclick="deleteNote(${n.id})">Delete</button>
-            </div>
-        `).join('');
-    }
-
-    function toggleNotesModal() {
-        const list = document.getElementById('chapter-notes-list');
-        const chapterNotes = notes.filter(n => n.book === currentBook && n.chapter === currentChapter);
-        
-        list.innerHTML = chapterNotes.length ? chapterNotes.map(n => `
-            <div class="note-item">
-                <strong>Verse ${n.range.join(', ')}</strong>
-                <p>${n.text}</p>
-                ${n.link ? `<span class="note-link" onclick="handleSearchLink('${n.link}')">Link: ${n.link}</span>` : ''}
-            </div>
-        `).join('') : "<p>No notes for this chapter.</p>";
-        
-        document.getElementById('all-notes-modal').style.display = 'block';
-    }
-
-    function handleSearchLink(linkStr) {
-        closeModal('all-notes-modal');
-        closeModal('note-modal');
-        document.getElementById('search-input').value = linkStr;
-        handleSearch();
-    }
-
 </script>
 </body>
 </html>
