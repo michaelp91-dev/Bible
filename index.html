@@ -2,214 +2,494 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KJV Bible Search</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>KJV Bible Reader</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;1,400&family=Inter:wght@400;600&display=swap');
-        
+        :root {
+            --primary: #2c3e50;
+            --accent: #3498db;
+            --bg: #fdfdfd;
+            --text: #333;
+            --verse-num: #888;
+            --highlight: #e1f5fe;
+        }
+
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f8fafc;
-        }
-        
-        .scripture-text {
-            font-family: 'Crimson Pro', serif;
-            line-height: 1.8;
-        }
-
-        .subscript {
-            vertical-align: sub;
-            font-size: 0.75em;
-            margin-right: 0.2rem;
-            color: #64748b;
-            font-weight: 600;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
         }
 
-        /* Custom scrollbar for a cleaner look */
-        ::-webkit-scrollbar {
-            width: 8px;
+        /* Header & Navigation */
+        header {
+            position: sticky;
+            top: 0;
+            background: var(--primary);
+            color: white;
+            padding: 10px;
+            z-index: 100;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
-        ::-webkit-scrollbar-track {
-            background: #f1f1f1;
+
+        .nav-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
         }
-        ::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
+
+        #nav-title {
+            background: none;
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .search-container {
+            display: flex;
+            gap: 5px;
+        }
+
+        input[type="text"] {
+            flex-grow: 1;
+            padding: 10px;
+            border-radius: 5px;
+            border: none;
+            font-size: 16px; /* Prevents auto-zoom on iOS */
+        }
+
+        /* Content Area */
+        #content {
+            padding: 15px;
+            max-width: 800px;
+            margin: 0 auto;
+            padding-bottom: 80px;
+        }
+
+        .verse {
+            margin-bottom: 12px;
+            padding: 4px;
             border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s;
         }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #94a3b8;
+
+        .verse.selected {
+            background-color: var(--highlight);
+            border-left: 3px solid var(--accent);
+        }
+
+        .v-num {
+            font-size: 0.8rem;
+            font-weight: bold;
+            color: var(--verse-num);
+            margin-right: 8px;
+            vertical-align: top;
+        }
+
+        .has-note-indicator {
+            color: var(--accent);
+            font-size: 0.7rem;
+            margin-left: 5px;
+        }
+
+        /* Modals */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            overflow-y: auto;
+        }
+
+        .modal-content {
+            background: white;
+            margin: 20px auto;
+            padding: 20px;
+            width: 90%;
+            max-width: 500px;
+            border-radius: 10px;
+        }
+
+        .grid-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .grid-item {
+            padding: 10px;
+            text-align: center;
+            background: #eee;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        /* Note Controls */
+        #note-editor {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        textarea {
+            width: 100%;
+            height: 100px;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        .note-item {
+            border-bottom: 1px solid #ddd;
+            padding: 10px 0;
+        }
+
+        .note-link {
+            color: var(--accent);
+            text-decoration: underline;
+            cursor: pointer;
+        }
+
+        .btn {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-danger { background: #e74c3c; color: white; }
+
+        .floating-actions {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .fab {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: var(--accent);
+            color: white;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            border: none;
         }
     </style>
 </head>
-<body class="min-h-screen flex flex-col">
+<body>
 
-    <!-- Navigation Header -->
-    <header class="bg-white border-b border-slate-200 sticky top-0 z-10">
-        <div class="max-w-4xl mx-auto px-4 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <h1 class="text-xl font-bold text-slate-800 flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                </svg>
-                KJV Search
-            </h1>
-            
-            <div class="flex gap-2 w-full sm:w-auto">
-                <input type="text" id="bookInput" placeholder="Book (e.g. Gen)" 
-                       class="w-full sm:w-32 px-3 py-2 bg-slate-50 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
-                <input type="number" id="chapterInput" placeholder="Ch" 
-                       class="w-20 px-3 py-2 bg-slate-50 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
-                <button onclick="handleSearch()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-semibold transition-colors">
-                    Search
-                </button>
-            </div>
+<header>
+    <div class="nav-controls">
+        <button id="nav-title" onclick="openBookNav()">Genesis 1</button>
+        <button class="btn btn-primary" onclick="toggleNotesModal()">Show Notes</button>
+    </div>
+    <div class="search-container">
+        <input type="text" id="search-input" placeholder="Search (e.g. John 3:16 or 'Jesus wept')">
+        <button class="btn btn-primary" onclick="handleSearch()">Go</button>
+    </div>
+</header>
+
+<main id="content">
+    <div id="loading">Loading Bible Data...</div>
+</main>
+
+<div class="floating-actions" id="selection-actions" style="display:none;">
+    <button class="fab" onclick="openNoteEditor()">📝</button>
+</div>
+
+<div id="nav-modal" class="modal">
+    <div class="modal-content">
+        <h3 id="modal-heading">Select Book</h3>
+        <div id="modal-list" class="grid-list"></div>
+        <button class="btn btn-danger" style="margin-top:20px" onclick="closeModal('nav-modal')">Close</button>
+    </div>
+</div>
+
+<div id="note-modal" class="modal">
+    <div class="modal-content">
+        <h3>Add/Edit Note</h3>
+        <p id="note-target-label"></p>
+        <div id="note-editor">
+            <textarea id="note-text" placeholder="Type your note here..."></textarea>
+            <input type="text" id="note-link" placeholder="Link to verse (e.g. Rom 5:8)">
+            <button class="btn btn-primary" onclick="saveNote()">Save Note</button>
         </div>
-    </header>
+        <hr>
+        <div id="existing-notes-for-verse"></div>
+        <button class="btn btn-danger" onclick="closeModal('note-modal')">Close</button>
+    </div>
+</div>
 
-    <!-- Content Area -->
-    <main class="flex-grow max-w-4xl mx-auto w-full p-4">
-        
-        <!-- Results -->
-        <div id="resultsContainer" class="hidden">
-            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <div class="border-b border-slate-100 bg-slate-50 px-6 py-4 flex justify-between items-center">
-                    <h2 id="headerTitle" class="text-lg font-semibold text-slate-700 uppercase tracking-widest"></h2>
-                    <span class="text-xs text-slate-400 font-mono">kjv_search.py logic</span>
-                </div>
-                
-                <div class="p-6 sm:p-10 scripture-text text-xl text-slate-800" id="bibleContent">
-                    <!-- Verses will be injected here -->
-                </div>
+<div id="all-notes-modal" class="modal">
+    <div class="modal-content">
+        <h3>Chapter Notes</h3>
+        <div id="chapter-notes-list"></div>
+        <button class="btn btn-danger" style="margin-top:20px" onclick="closeModal('all-notes-modal')">Close</button>
+    </div>
+</div>
 
-                <div class="border-t border-slate-100 bg-slate-50 px-6 py-3 text-center">
-                    <div class="h-1 w-full bg-slate-200 rounded-full relative overflow-hidden">
-                        <div class="absolute inset-0 bg-indigo-200 w-full opacity-50"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
+<script>
+    let bibleData = [];
+    let currentBook = "Gen";
+    let currentChapter = "1";
+    let selectedVerses = [];
+    let notes = JSON.parse(localStorage.getItem('bible_notes') || '[]');
 
-        <!-- Error State -->
-        <div id="errorState" class="hidden py-20 text-center">
-            <div class="bg-red-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-            </div>
-            <h3 class="text-slate-600 font-medium" id="errorMsg"></h3>
-            <p class="text-slate-400 text-sm mt-1">Check if abbreviations match (e.g., Gen, Exo, Mat).</p>
-        </div>
+    const bookNames = {
+        "Gen": "Genesis", "Exo": "Exodus", "Lev": "Leviticus", "Num": "Numbers", "Deu": "Deuteronomy",
+        "Jos": "Joshua", "Jud": "Judges", "Rut": "Ruth", "1Sa": "1 Samuel", "2Sa": "2 Samuel",
+        "1Ki": "1 Kings", "2Ki": "2 Kings", "1Ch": "1 Chronicles", "2Ch": "2 Chronicles", "Ezr": "Ezra",
+        "Neh": "Nehemiah", "Est": "Esther", "Job": "Job", "Psa": "Psalms", "Pro": "Proverbs",
+        "Ecc": "Ecclesiastes", "Sol": "Song of Solomon", "Isa": "Isaiah", "Jer": "Jeremiah", "Lam": "Lamentations",
+        "Eze": "Ezekiel", "Dan": "Daniel", "Hos": "Hosea", "Joe": "Joel", "Amo": "Amos",
+        "Oba": "Obadiah", "Jon": "Jonah", "Mic": "Micah", "Nah": "Nahum", "Hab": "Habakkuk",
+        "Zep": "Zephaniah", "Hag": "Haggar", "Zec": "Zechariah", "Mal": "Malachi", "Mat": "Matthew",
+        "Mar": "Mark", "Luk": "Luke", "Joh": "John", "Act": "Acts", "Rom": "Romans",
+        "1Co": "1 Corinthians", "2Co": "2 Corinthians", "Gal": "Galatians", "Eph": "Ephesians", "Phi": "Philippians",
+        "Col": "Colossians", "1Th": "1 Thessalonians", "2Th": "2 Thessalonians", "1Ti": "1 Timothy", "2Ti": "2 Timothy",
+        "Tit": "Titus", "Phm": "Philemon", "Heb": "Hebrews", "Jam": "James", "1Pe": "1 Peter",
+        "2Pe": "2 Peter", "1Jo": "1 John", "2Jo": "2 John", "3Jo": "3 John", "Jud": "Jude", "Rev": "Revelation"
+    };
 
-        <!-- Placeholder / Empty State -->
-        <div id="placeholder" class="py-20 text-center">
-            <div class="bg-indigo-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-            </div>
-            <h3 class="text-slate-600 font-medium">Ready to search</h3>
-            <p class="text-slate-400 text-sm mt-1">Enter a book abbreviation and chapter to begin.</p>
-        </div>
-
-        <!-- Loading State -->
-        <div id="loading" class="hidden py-20 text-center">
-            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-            <p class="text-slate-500">Searching kjvdat.txt...</p>
-        </div>
-
-    </main>
-
-    <footer class="py-8 text-center text-slate-400 text-sm">
-        <p>Direct implementation of search_kjvdat_pro logic</p>
-    </footer>
-
-    <script>
-        // Exactly matches get_subscript(number) from kjv_search.py
-        function getSubscript(number) {
-            const subMap = {
-                "0": "₀", "1": "₁", "2": "₂", "3": "₃", "4": "₄",
-                "5": "₅", "6": "₆", "7": "₇", "8": "₈", "9": "₉"
-            };
-            return String(number).split('').map(char => subMap[char] || char).join('');
-        }
-
-        async function handleSearch() {
-            const bookAbbr = document.getElementById('bookInput').value.trim();
-            const chapterNum = document.getElementById('chapterInput').value.trim();
-            
-            if (!bookAbbr || !chapterNum) return;
-
-            // UI Reset
-            document.getElementById('placeholder').classList.add('hidden');
-            document.getElementById('resultsContainer').classList.add('hidden');
-            document.getElementById('errorState').classList.add('hidden');
-            document.getElementById('loading').classList.remove('hidden');
-
-            try {
-                // Fetch the actual file exactly as search_kjvdat_pro opens 'kjvdat.txt'
-                const response = await fetch('kjvdat.txt');
-                if (!response.ok) throw new Error("File 'kjvdat.txt' not found.");
-                
-                const data = await response.text();
-                const lines = data.split(/\r?\n/);
-                
-                // Matches search_prefix = f"{book_abbr}|{chapter_num}|"
-                const searchPrefix = `${bookAbbr}|${chapterNum}|`;
-                const versesText = [];
-
-                for (let line of lines) {
-                    // clean_line = line.strip()
-                    const cleanLine = line.trim();
-                    
-                    // if clean_line.startswith(search_prefix):
-                    if (cleanLine.startsWith(searchPrefix)) {
-                        // parts = clean_line.split('|')
-                        const parts = cleanLine.split('|');
-                        
-                        // if len(parts) >= 4:
-                        if (parts.length >= 4) {
-                            const verseNum = parts[2];
-                            // text = parts[3].replace('~', '').strip()
-                            const text = parts[3].replace(/~/g, '').trim();
-                            
-                            // sub_v = get_subscript(verse_num)
-                            const subV = getSubscript(verseNum);
-                            // verses_text.append(f"{sub_V}{text}")
-                            versesText.push(`${subV}${text}`);
-                        }
-                    }
-                }
-
-                document.getElementById('loading').classList.add('hidden');
-
-                // if verses_text:
-                if (versesText.length > 0) {
-                    // full_text = " ".join(verses_text)
-                    const fullText = versesText.join(' ');
-                    
-                    document.getElementById('headerTitle').innerText = `--- ${bookAbbr.toUpperCase()} CHAPTER ${chapterNum} ---`;
-                    document.getElementById('bibleContent').innerHTML = fullText;
-                    document.getElementById('resultsContainer').classList.remove('hidden');
-                } else {
-                    showError(`Error: Could not find ${bookAbbr} ${chapterNum}.`);
-                }
-
-            } catch (err) {
-                document.getElementById('loading').classList.add('hidden');
-                showError(err.message);
-            }
-        }
-
-        function showError(msg) {
-            document.getElementById('errorMsg').innerText = msg;
-            document.getElementById('errorState').classList.remove('hidden');
-        }
-
-        document.addEventListener('keypress', function (e) {
-            if (e.key === 'Enter') {
-                handleSearch();
-            }
+    // Load Data
+    fetch('kjvdat.txt')
+        .then(response => response.text())
+        .then(text => {
+            const lines = text.split('\n');
+            bibleData = lines.filter(l => l.trim()).map(line => {
+                const parts = line.split('|');
+                return {
+                    book: parts[0],
+                    chapter: parts[1],
+                    verse: parts[2],
+                    text: parts[3].replace('~', '').trim()
+                };
+            });
+            renderChapter();
+        })
+        .catch(err => {
+            document.getElementById('content').innerHTML = "Error loading bible file. Ensure kjvdat.txt is in the same folder.";
         });
-    </script>
+
+    function renderChapter() {
+        const content = document.getElementById('content');
+        const titleBtn = document.getElementById('nav-title');
+        titleBtn.innerText = `${bookNames[currentBook]} ${currentChapter}`;
+        
+        const verses = bibleData.filter(v => v.book === currentBook && v.chapter === currentChapter);
+        
+        content.innerHTML = verses.map(v => {
+            const verseId = `${v.book}|${v.chapter}|${v.verse}`;
+            const hasNote = notes.some(n => n.verseId === verseId);
+            return `
+                <div class="verse" id="v-${v.verse}" onclick="toggleVerseSelection('${v.verse}')">
+                    <span class="v-num">${v.verse}</span>
+                    <span class="v-text">${v.text}</span>
+                    ${hasNote ? '<span class="has-note-indicator">●</span>' : ''}
+                </div>
+            `;
+        }).join('');
+        
+        selectedVerses = [];
+        updateSelectionUI();
+        window.scrollTo(0,0);
+    }
+
+    // Selection Logic
+    function toggleVerseSelection(verseNum) {
+        const idx = selectedVerses.indexOf(verseNum);
+        const element = document.getElementById(`v-${verseNum}`);
+        
+        if (idx > -1) {
+            selectedVerses.splice(idx, 1);
+            element.classList.remove('selected');
+        } else {
+            selectedVerses.push(verseNum);
+            element.classList.add('selected');
+        }
+        updateSelectionUI();
+    }
+
+    function updateSelectionUI() {
+        const fab = document.getElementById('selection-actions');
+        fab.style.display = selectedVerses.length > 0 ? 'flex' : 'none';
+    }
+
+    // Navigation Modals
+    function openBookNav() {
+        const list = document.getElementById('modal-list');
+        document.getElementById('modal-heading').innerText = "Select Book";
+        list.innerHTML = Object.entries(bookNames).map(([code, name]) => `
+            <div class="grid-item" onclick="selectBook('${code}')">${name}</div>
+        `).join('');
+        document.getElementById('nav-modal').style.display = 'block';
+    }
+
+    function selectBook(code) {
+        currentBook = code;
+        const chapters = [...new Set(bibleData.filter(v => v.book === code).map(v => v.chapter))];
+        const list = document.getElementById('modal-list');
+        document.getElementById('modal-heading').innerText = "Select Chapter";
+        list.innerHTML = chapters.map(ch => `
+            <div class="grid-item" onclick="selectChapter('${ch}')">${ch}</div>
+        `).join('');
+    }
+
+    function selectChapter(ch) {
+        currentChapter = ch;
+        closeModal('nav-modal');
+        renderChapter();
+    }
+
+    function closeModal(id) {
+        document.getElementById(id).style.display = 'none';
+    }
+
+    // Search Logic
+    function handleSearch() {
+        const query = document.getElementById('search-input').value.trim();
+        if (!query) return;
+
+        // Try Book Chapter:Verse pattern
+        const refMatch = query.match(/^(\d?\s?[a-zA-Z]+)\s*(\d+)(?::(\d+))?$/);
+        if (refMatch) {
+            const inputBook = refMatch[1].toLowerCase().replace(/\s/g, '');
+            const bookCode = Object.keys(bookNames).find(code => 
+                bookNames[code].toLowerCase().replace(/\s/g, '').includes(inputBook) || code.toLowerCase() === inputBook
+            );
+
+            if (bookCode) {
+                currentBook = bookCode;
+                currentChapter = refMatch[2];
+                renderChapter();
+                if (refMatch[3]) {
+                    setTimeout(() => {
+                        const el = document.getElementById(`v-${refMatch[3]}`);
+                        if (el) el.scrollIntoView();
+                        toggleVerseSelection(refMatch[3]);
+                    }, 100);
+                }
+                return;
+            }
+        }
+
+        // Keyword Search
+        const results = bibleData.filter(v => v.text.toLowerCase().includes(query.toLowerCase())).slice(0, 50);
+        const content = document.getElementById('content');
+        content.innerHTML = `<h3>Search Results for "${query}"</h3>` + (results.length ? results.map(v => `
+            <div class="verse" onclick="goToVerse('${v.book}', '${v.chapter}', '${v.verse}')">
+                <small>${bookNames[v.book]} ${v.chapter}:${v.verse}</small><br>${v.text}
+            </div>
+        `).join('') : '<p>No results found</p>');
+    }
+
+    function goToVerse(b, c, v) {
+        currentBook = b;
+        currentChapter = c;
+        renderChapter();
+        setTimeout(() => {
+            const el = document.getElementById(`v-${v}`);
+            if (el) el.scrollIntoView();
+            toggleVerseSelection(v);
+        }, 100);
+    }
+
+    // Notes Logic
+    function openNoteEditor() {
+        selectedVerses.sort((a,b) => parseInt(a) - parseInt(b));
+        const rangeLabel = selectedVerses.length > 1 
+            ? `${bookNames[currentBook]} ${currentChapter}:${selectedVerses[0]}-${selectedVerses[selectedVerses.length-1]}`
+            : `${bookNames[currentBook]} ${currentChapter}:${selectedVerses[0]}`;
+        
+        document.getElementById('note-target-label').innerText = "Note for: " + rangeLabel;
+        document.getElementById('note-text').value = "";
+        document.getElementById('note-link').value = "";
+        
+        renderExistingNotes();
+        document.getElementById('note-modal').style.display = 'block';
+    }
+
+    function saveNote() {
+        const text = document.getElementById('note-text').value;
+        const link = document.getElementById('note-link').value;
+        if (!text) return;
+
+        const verseId = `${currentBook}|${currentChapter}|${selectedVerses[0]}`; // Associated with start verse
+        const newNote = {
+            id: Date.now(),
+            verseId: verseId,
+            range: [...selectedVerses],
+            book: currentBook,
+            chapter: currentChapter,
+            text: text,
+            link: link
+        };
+
+        notes.push(newNote);
+        localStorage.setItem('bible_notes', JSON.stringify(notes));
+        renderChapter();
+        closeModal('note-modal');
+    }
+
+    function deleteNote(id) {
+        notes = notes.filter(n => n.id !== id);
+        localStorage.setItem('bible_notes', JSON.stringify(notes));
+        renderExistingNotes();
+        renderChapter();
+    }
+
+    function renderExistingNotes() {
+        const verseId = `${currentBook}|${currentChapter}|${selectedVerses[0]}`;
+        const verseNotes = notes.filter(n => n.verseId === verseId);
+        const container = document.getElementById('existing-notes-for-verse');
+        container.innerHTML = verseNotes.map(n => `
+            <div class="note-item">
+                <p>${n.text}</p>
+                ${n.link ? `<small class="note-link" onclick="handleSearchLink('${n.link}')">Link: ${n.link}</small>` : ''}
+                <br><button class="btn btn-danger" onclick="deleteNote(${n.id})">Delete</button>
+            </div>
+        `).join('');
+    }
+
+    function toggleNotesModal() {
+        const list = document.getElementById('chapter-notes-list');
+        const chapterNotes = notes.filter(n => n.book === currentBook && n.chapter === currentChapter);
+        
+        list.innerHTML = chapterNotes.length ? chapterNotes.map(n => `
+            <div class="note-item">
+                <strong>Verse ${n.range.join(', ')}</strong>
+                <p>${n.text}</p>
+                ${n.link ? `<span class="note-link" onclick="handleSearchLink('${n.link}')">Link: ${n.link}</span>` : ''}
+            </div>
+        `).join('') : "<p>No notes for this chapter.</p>";
+        
+        document.getElementById('all-notes-modal').style.display = 'block';
+    }
+
+    function handleSearchLink(linkStr) {
+        closeModal('all-notes-modal');
+        closeModal('note-modal');
+        document.getElementById('search-input').value = linkStr;
+        handleSearch();
+    }
+
+</script>
 </body>
 </html>
