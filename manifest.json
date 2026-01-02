@@ -1,7 +1,7 @@
 {
-  "name": "KJV Bible Study",
-  "short_name": "KJV Bible",
-  "description": "A mobile-optimized King James Version Bible with study notes.",
+  "name": "Bible Study App",
+  "short_name": "Bible Study",
+  "description": "Mobile-first Bible reader and study note tool.",
   "start_url": "index.html",
   "display": "standalone",
   "background_color": "#1a237e",
