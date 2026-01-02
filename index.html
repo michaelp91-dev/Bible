@@ -26,69 +26,58 @@ export default function App() {
     const loadFiles = async () => {
       try {
         setLoading(true);
-        // We pull from KJV.txt for full names and vuldat.txt for Latin comparison
+        // Fetching files from the same folder as index.html
         const [kjvRes, vulRes] = await Promise.all([
-          fetch('KJV.txt'),
+          fetch('kjvdat.txt'),
           fetch('vuldat.txt')
         ]);
 
-        if (!kjvRes.ok || !vulRes.ok) throw new Error("Could not find bible data files (KJV.txt and vuldat.txt).");
+        if (!kjvRes.ok || !vulRes.ok) throw new Error("Could not find bible data files (kjvdat.txt and vuldat.txt) in the root folder.");
 
         const [kjvText, vulText] = await Promise.all([kjvRes.text(), vulRes.text()]);
 
         const kjvMap = {};
         const vulMap = {};
-        const bookList = [];
-        const bookAbbrMap = {}; // Maps full name to Latin abbreviation based on order
+        const kjvBookOrder = [];
+        const vulBookOrder = [];
 
-        // 1. Parse KJV.txt (Format: "Book Chapter:Verse\tText")
-        // Regex to match "Book Name Chapter:Verse"
-        const kjvRegex = /^(.+)\s(\d+):(\d+)\t(.+)$/;
-        
+        // 1. Parse kjvdat.txt (Format: "Book|C|V|Text~")
         kjvText.split(/\r?\n/).forEach(line => {
-          const match = line.match(kjvRegex);
-          if (match) {
-            const [_, bookName, chapter, verse, text] = match;
-            const cNum = parseInt(chapter);
-            const vNum = parseInt(verse);
-
-            if (!kjvMap[bookName]) {
-              kjvMap[bookName] = {};
-              bookList.push({ name: bookName, chapters: 0 });
+          const parts = line.split('|');
+          if (parts.length >= 4) {
+            const b = parts[0], c = parts[1], v = parts[2], t = parts[3].replace('~', '').trim();
+            if (!kjvMap[b]) {
+              kjvMap[b] = {};
+              kjvBookOrder.push(b);
             }
-            if (!kjvMap[bookName][cNum]) kjvMap[bookName][cNum] = [];
-            
-            kjvMap[bookName][cNum].push({ num: vNum, text: text.trim() });
-            
-            // Track max chapter
-            const bookObj = bookList.find(b => b.name === bookName);
-            if (cNum > bookObj.chapters) bookObj.chapters = cNum;
+            if (!kjvMap[b][c]) kjvMap[b][c] = [];
+            kjvMap[b][b === parts[0] ? c : c] = kjvMap[b][c] || []; // Ensure nested key exists
+            kjvMap[b][c].push({ num: parseInt(v), text: t });
           }
         });
 
         // 2. Parse vuldat.txt (Format: "Abbr|C|V|Text~")
-        const latinBookOrder = [];
         vulText.split(/\r?\n/).forEach(line => {
           const parts = line.split('|');
           if (parts.length >= 4) {
-            const abbr = parts[0], c = parts[1], v = parts[2], t = parts[3].replace('~', '').trim();
-            if (!vulMap[abbr]) {
-              vulMap[abbr] = {};
-              latinBookOrder.push(abbr);
+            const b = parts[0], c = parts[1], v = parts[2], t = parts[3].replace('~', '').trim();
+            if (!vulMap[b]) {
+              vulMap[b] = {};
+              vulBookOrder.push(b);
             }
-            if (!vulMap[abbr][c]) vulMap[abbr][c] = [];
-            vulMap[abbr][c].push({ num: parseInt(v), text: t });
+            if (!vulMap[b][c]) vulMap[b][c] = [];
+            vulMap[b][c].push({ num: parseInt(v), text: t });
           }
         });
 
-        // 3. Link Full Names to Latin Abbrs based on file sequence
-        // We assume the sequence of books in KJV.txt matches vuldat.txt
-        const generatedBooks = bookList.map((book, index) => {
-          const latinAbbr = latinBookOrder[index];
-          bookAbbrMap[book.name] = latinAbbr;
+        // 3. Generate book list from files
+        // Links names from kjvdat.txt to abbreviations in vuldat.txt by index
+        const generatedBooks = kjvBookOrder.map((name, index) => {
+          const chapters = Object.keys(kjvMap[name]).length;
           return {
-            ...book,
-            abbr: latinAbbr // Store the abbreviation for Latin lookup
+            name: name, // Pulled directly from the file
+            abbr: vulBookOrder[index] || name, // Latin abbr for lookup, fallback to name
+            chapters: chapters
           };
         });
 
@@ -146,7 +135,7 @@ export default function App() {
   if (loading) return (
     <div className="h-screen flex flex-col items-center justify-center bg-white">
       <Loader2 className="animate-spin text-blue-600 mb-4" size={48} />
-      <p className="text-neutral-500 animate-pulse font-medium tracking-tight">Extracting names from Bible texts...</p>
+      <p className="text-neutral-500 animate-pulse font-medium tracking-tight">Loading Bible from kjvdat.txt...</p>
     </div>
   );
 
@@ -155,7 +144,7 @@ export default function App() {
       <div className="bg-red-50 text-red-600 p-6 rounded-2xl border border-red-100 max-w-sm">
         <h2 className="font-bold text-lg mb-2">Resource Error</h2>
         <p className="text-sm">{error || "No book data found."}</p>
-        <p className="text-xs mt-4 text-red-400 italic">Ensure KJV.txt and vuldat.txt are in the same folder.</p>
+        <p className="text-xs mt-4 text-red-400 italic">Ensure kjvdat.txt and vuldat.txt are in the same folder as index.html.</p>
       </div>
     </div>
   );
